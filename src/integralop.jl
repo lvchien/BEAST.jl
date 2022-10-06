@@ -56,7 +56,7 @@ Create an iterable collection of the elements stored in `geo`. The order in whic
 this collection produces the elements determines the index used for lookup in the
 data structures returned by `assemblydata` and `quaddata`.
 """
-elements(geo) = [chart(geo,cl) for cl in cells(geo)]
+elements(geo) = [chart(geo,cl) for cl in geo]
 
 elements(sp::Space) = elements(geometry(sp))
 
@@ -87,13 +87,13 @@ function assemblechunk!(biop::IntegralOperator, tfs::Space, bfs::Space, store;
     #         qd, zlocal, store; quadstrat)
     # else
     if CompScienceMeshes.refines(tgeo, bgeo)
-        @info "assemblechunk: test refines trial mesh"
+        # @info "assemblechunk: test refines trial mesh"
         assemblechunk_body_nested_meshes!(biop,
             tshapes, test_elements, tad,
             bshapes, bsis_elements, bad,
             qd, zlocal, store; quadstrat)
     elseif CompScienceMeshes.refines(bgeo, tgeo)
-        @info "assemblechunk: trial refines test mesh"
+        # @info "assemblechunk: trial refines test mesh"
         assemblechunk_body_trial_refines_test!(biop,
             tshapes, test_elements, tad,
             bshapes, bsis_elements, bad,

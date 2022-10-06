@@ -1,6 +1,6 @@
 using CompScienceMeshes, BEAST
 
-Γ = readmesh(joinpath(dirname(@__FILE__),"sphere2.in"))
+Γ = readmesh(joinpath(dirname(pathof(BEAST)),"../examples/sphere2.in"))
 X = raviartthomas(Γ)
 Y = buffachristiansen(Γ)
 Z = raviartthomas(Γ, BEAST.Continuity{:none})
@@ -29,9 +29,11 @@ fcr2, _ = facecurrents(u2, Z)
 using LinearAlgebra
 using Plots
 
-plot(title="Compare current density")
-plot!(norm.(fcr1), label="MxMIFE")
-scatter!(norm.(fcr2), label="DGMFIE", c=:red)
+Plots.plot(title="Compare current density")
+Plots.plot!(norm.(fcr1), label="MxMIFE")
+Plots.scatter!(norm.(fcr2), label="DGMFIE", c=:red)
 
+u = u2
+X = Z
 include("utils/postproc.jl")
 include("utils/plotresults.jl")

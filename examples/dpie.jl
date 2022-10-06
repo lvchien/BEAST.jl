@@ -1,7 +1,7 @@
 using CompScienceMeshes
 using BEAST
 
-Γ = readmesh(joinpath(@__DIR__,"sphere2.in"))
+Γ = readmesh(joinpath(dirname(pathof(BEAST)),"../examples/sphere2.in"))
 X = raviartthomas(Γ)
 
 d = BEAST.CurlSingleLayerDP3D(1.0im, 1.0)
@@ -12,7 +12,7 @@ Y = lagrangec0d1(Γ)
 
 x = refspace(X)
 y = refspace(Y)
-charts = [chart(Γ,c) for c in cells(Γ)]
+charts = [chart(Γ,c) for c in Γ]
 
 qs = BEAST.defaultquadstrat(s, x, x)
 qd = quaddata(s, x, x, charts, charts, qs)
