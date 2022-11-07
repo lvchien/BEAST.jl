@@ -8,6 +8,7 @@ using FillArrays
 using BlockArrays
 using SparseMatrixDicts
 
+using ConvolutionOperators
 using SauterSchwabQuadrature
 using SauterSchwab3D
 using FastGaussQuadrature
@@ -53,6 +54,12 @@ export HH3DSingleLayerTDBIO
 export HH3DDoubleLayerTDBIO
 export ∂n
 export HH3DHyperSingularFDBIO
+
+export HH3DSingleLayerNear
+export HH3DDoubleLayerNear
+export HH3DDoubleLayerTransposedNear
+export HH3DHyperSingularNear
+
 export NitscheHH3
 export MWSingleLayerTDIO
 export MWDoubleLayerTDIO
@@ -118,14 +125,9 @@ using SparseArrays
 function convolve end
 
 include("utils/polynomial.jl")
-include("utils/mixedblockarrays.jl")
-include("timedomain/convop.jl")
-include("utils/sparsend.jl")
 include("utils/specialfns.jl")
 include("utils/combinatorics.jl")
 include("utils/linearspace.jl")
-include("utils/matrixconv.jl")
-include("utils/polyeig.jl")
 include("utils/zeromap.jl")
 
 include("bases/basis.jl")
