@@ -132,36 +132,3 @@ function marchonintime(W0,Z,B,I)
     end
     return x
 end
-
-"""
-    Truncate the tail from kmax = maximum(Z.k1)
-"""
-function marchonintime_trunc(W0,Z,B,I)
-
-        T = eltype(W0)
-        M,N = size(W0)
-        @assert M == size(B,1)
-    
-        x = zeros(T,N,I)
-        y = zeros(T,N)
-        csx = zeros(T,N,I)
-    
-        for i in 1:I
-            R = B[:,i]
-            k_start = 2
-            k_stop = I
-    
-            fill!(y,0)
-            ConvolutionOperators.convolve!(y,Z,x,csx,i,k_start,k_stop)
-            b = R - y
-            x[:,i] .+= W0 * b
-            if (i > 1 && i < maximum(Z.k1))
-                csx[:,i] .= csx[:,i-1] .+ x[:,i]
-            else
-                csx[:,i] .= x[:,i]
-            end
-    
-            (i % 10 == 0) && print(i, "[", I, "] - ")
-        end
-        return x
-end
