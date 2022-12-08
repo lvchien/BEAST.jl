@@ -101,7 +101,7 @@ up to timestep `I`. Here, `Z` is an array of order 3 that contains a discretisat
 of a time translation invariant retarded potential operator. `W0` is the inverse of
 the slice `Z[:,:,1]`.
 """
-function marchonintime(W0,Z,B,I,tail_truncate=false)
+function marchonintime(W0,Z,B,I)
 
     T = eltype(W0)
     M,N = size(W0)
@@ -119,7 +119,7 @@ function marchonintime(W0,Z,B,I,tail_truncate=false)
         k_stop = I
 
         fill!(y,0)
-        ConvolutionOperators.convolve!(y,Z,x,csx,i,k_start,k_stop,tail_truncate)
+        ConvolutionOperators.convolve!(y,Z,x,csx,i,k_start,k_stop)
         b = R - y
         x[:,i] .+= W0 * b
         if i > 1
