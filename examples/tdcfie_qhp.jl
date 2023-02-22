@@ -1,4 +1,5 @@
 using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators
+include("genmesh.jl")
 
 setminus(A,B) = submesh(!in(B), A)
 
@@ -13,16 +14,14 @@ function q2h(j)
     return h
 end
 
-# Parameters
-c0 = 1/√(μ0*ε0)
-η0 = √(μ0/ε0)
+# Physical coefficients
 μ, ε = 1.0, 1.0
 c = 1.0
 η = 1.0
 
 # Computational mesh
-radius, mesh_size = 1.0, 0.3
-Γ = CompScienceMeshes.meshsphere2(radius=radius, h=mesh_size)
+radius, mesh_size = 1.0, 0.55
+Γ = meshsphere2(radius=radius, h=mesh_size)
 ∂Γ = boundary(Γ)
 
 # Connectivity matrices
@@ -66,23 +65,23 @@ iNyx = inv(Matrix(Nyx))
 iNxy = transpose(iNyx)
 
 # assembly of static operators
-nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 7, 7, 7, 7)
+nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 9, 9, 9, 9)
 
 𝕋0s = assemble(T̂0s, Y, Y, quadstrat=nearstrat)
 𝕋0h = assemble(T̂0h, Y, Y, quadstrat=nearstrat)
 𝕂0 = assemble(K0, Y, X, quadstrat=nearstrat)
 𝕄0 = Matrix(0.5 * Nyx - 𝕂0)
-llm_mfie = 𝕄0 * iNyx
-llm_efie = Matrix((μ * ℙΣH * 𝕋0s * ℙΣH + ε * ℙΛ * 𝕋0h * ℙΛ) * iNxy)
+
+llm_efie = Matrix((μ * ℙΣH * 𝕋0s * ℙΣH + ε * ℙΛ * 𝕋0h * ℙΛ) * (ℙΛ * iNxy * PΛH + ℙΣH * iNxy * PΣ + 0.5 * ℙΣH * iNxy * PΛH))
 
 ```
                 MAIN PART 
 ```
 
-Δt, Nt = 0.1, 2000
+Δt, Nt = 0.1, 1000
 # Plane wave
 duration = 80 * Δt * c                                        
-delay = 240 * Δt                                        
+delay = 120 * Δt                                        
 amplitude = 1.0
 gaussian = creategaussian(duration, delay, amplitude)
 fgaussian = fouriertransform(gaussian)
@@ -103,20 +102,19 @@ q = BEAST.convolve(p, h)                        		                            # 
 ∂q = BEAST.derive(q)					                                            # first order derivative of q (*Δt)
 ip = integrate(p) 	                			                                    # integral of p
 
-### FORM 1: TD-EFIE
-BEAST.@defaultquadstrat (T, X⊗δ, X⊗∂q) BEAST.OuterNumInnerAnalyticQStrat(7)
+### FORM 1: standard TD-EFIE
+BEAST.@defaultquadstrat (T, X⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(9)
 
-lhs_bilform_1 = @discretise η*T[k,j] k∈X⊗δ j∈X⊗∂q
-lhs1 = 1/Δt * BEAST.td_assemble(lhs_bilform_1.bilform, lhs_bilform_1.test_space_dict, lhs_bilform_1.trial_space_dict)
+lhs_bilform_1 = @discretise η*T[k,j] k∈X⊗δ j∈X⊗h
+lhs1 = BEAST.td_assemble(lhs_bilform_1.bilform, lhs_bilform_1.test_space_dict, lhs_bilform_1.trial_space_dict)
 
-rhs_linform_1 = @discretise(-1.0∂E[k], k∈X⊗δ)
+rhs_linform_1 = @discretise(-1.0E[k], k∈X⊗δ)
 rhs1 = BEAST.td_assemble(rhs_linform_1.linform, rhs_linform_1.test_space_dict)
 
 Z01 = zeros(Float64, size(lhs1)[1:2])
 ConvolutionOperators.timeslice!(Z01, lhs1, 1)
 iZ01 = inv(Z01)
-jq1 = marchonintime(iZ01, lhs1, rhs1, Nt)
-j1 = q2h(jq1)
+j1 = marchonintime(iZ01, lhs1, rhs1, Nt)
 
 # ### FORM 2: CP TD-EFIE (preconditioned by the low-frequency limit of the qHP TD-EFIE operator)
 # lhs2 = llm_efie * lhs1
@@ -127,19 +125,19 @@ j1 = q2h(jq1)
 # j2 = marchonintime(iZ02, lhs2, rhs2, Nt)
 
 ### FORM 3: qHP CP TD-EFIE
-BEAST.@defaultquadstrat (T̂s, X⊗δ, X⊗p) BEAST.OuterNumInnerAnalyticQStrat(7)
-BEAST.@defaultquadstrat (T̂s, X⊗δ, X⊗∂h) BEAST.OuterNumInnerAnalyticQStrat(7)
-BEAST.@defaultquadstrat (T, X⊗δ, X⊗∂q) BEAST.OuterNumInnerAnalyticQStrat(7)
+BEAST.@defaultquadstrat (T̂s, X⊗δ, X⊗p) BEAST.OuterNumInnerAnalyticQStrat(9)
+BEAST.@defaultquadstrat (T̂s, X⊗δ, X⊗∂h) BEAST.OuterNumInnerAnalyticQStrat(9)
+BEAST.@defaultquadstrat (T, X⊗δ, X⊗∂q) BEAST.OuterNumInnerAnalyticQStrat(9)
 
-Mll_bilform_3 = @discretise T̂s[k, j] k∈X⊗δ j∈X⊗p
-Mls_bilform_3 = @discretise T̂s[k, j] k∈X⊗δ j∈X⊗∂h
-Mss_bilform_3 = @discretise T[k, j] k∈X⊗δ j∈X⊗∂q
+Mll_bilform_3 = @discretise η*T̂s[k, j] k∈X⊗δ j∈X⊗p
+Mls_bilform_3 = @discretise η*T̂s[k, j] k∈X⊗δ j∈X⊗∂h
+Mss_bilform_3 = @discretise η*T[k, j] k∈X⊗δ j∈X⊗∂q
 
 Mll_3 = BEAST.td_assemble(Mll_bilform_3.bilform, Mll_bilform_3.test_space_dict, Mll_bilform_3.trial_space_dict)
 Mls_3 = BEAST.td_assemble(Mls_bilform_3.bilform, Mls_bilform_3.test_space_dict, Mls_bilform_3.trial_space_dict)
 Mss_3 = 1/Δt * BEAST.td_assemble(Mss_bilform_3.bilform, Mss_bilform_3.test_space_dict, Mss_bilform_3.trial_space_dict)
 
-lhs3 = η^2 * llm_efie * (PΛH * Mll_3 * PΛH + PΛH * Mls_3 * PΣ + PΣ * Mls_3 * PΛH + PΣ * Mss_3 * PΣ)
+lhs3 = η * llm_efie * (PΛH * Mll_3 * PΛH + PΛH * Mls_3 * PΣ + PΣ * Mls_3 * PΛH + PΣ * Mss_3 * PΣ)
 
 el_linform_3 = @discretise(-1.0iE[k], k∈X⊗δ)
 es_linform_3 = @discretise(-1.0E[k], k∈X⊗p)
@@ -160,8 +158,8 @@ for i in 2:Nt
     j3[:, i] = PΛH * y3[:, i] + 1.0/Δt * PΣ * (y3[:, i] - y3[:, i-1])
 end
 
-### FORM 4: TD-MFIE
-BEAST.@defaultquadstrat (K, Y⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(7)
+### FORM 4: standard TD-MFIE
+BEAST.@defaultquadstrat (K, Y⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(9)
 
 lhs_bilform_4 = @discretise (0.5(N⊗I) + 1.0K)[k,j] k∈Y⊗δ j∈X⊗h
 lhs4 = BEAST.td_assemble(lhs_bilform_4.bilform, lhs_bilform_4.test_space_dict, lhs_bilform_4.trial_space_dict)
@@ -174,61 +172,59 @@ ConvolutionOperators.timeslice!(Z04, lhs4, 1)
 iZ04 = inv(Z04)
 j4 = marchonintime(iZ04, lhs4, rhs4, Nt)
 
-### FORM 5: qHP static TD-MFIE
-BEAST.@defaultquadstrat (K, Y⊗δ, X⊗ip) BEAST.OuterNumInnerAnalyticQStrat(7)
-BEAST.@defaultquadstrat (K, Y⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(7)
-BEAST.@defaultquadstrat (K, Y⊗δ, X⊗∂q) BEAST.OuterNumInnerAnalyticQStrat(7)
+#=
+    FORM 5: qHP symmetrized TD-MFIE
+=#
 
-Mll_bilform_5 = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗ip
-Msl_bilform_5 = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗h
-Mss_bilform_5 = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗∂q
+BEAST.@defaultquadstrat (K, Y⊗δ, X⊗p) BEAST.OuterNumInnerAnalyticQStrat(9)
+BEAST.@defaultquadstrat (K, Y⊗δ, X⊗∂h) BEAST.OuterNumInnerAnalyticQStrat(9)
+BEAST.@defaultquadstrat (K, Y⊗δ, X⊗∂q) BEAST.OuterNumInnerAnalyticQStrat(9)
 
-Mll_5f = BEAST.td_assemble(Mll_bilform_5.bilform, Mll_bilform_5.test_space_dict, Mll_bilform_5.trial_space_dict)
+Msl_bilform_5 = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗p
+Mss_bilform_5 = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗∂h
+Mls_bilform_5 = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗∂q
+
 Msl_5 = BEAST.td_assemble(Msl_bilform_5.bilform, Msl_bilform_5.test_space_dict, Msl_bilform_5.trial_space_dict)
-Mss_5 = 1/Δt * BEAST.td_assemble(Mss_bilform_5.bilform, Mss_bilform_5.test_space_dict, Mss_bilform_5.trial_space_dict)
+Mss_5 = BEAST.td_assemble(Mss_bilform_5.bilform, Mss_bilform_5.test_space_dict, Mss_bilform_5.trial_space_dict)
+Mls_5 = 1/Δt * BEAST.td_assemble(Mls_bilform_5.bilform, Mls_bilform_5.test_space_dict, Mls_bilform_5.trial_space_dict)
 
-# # Truncate the long tail of the loop-loop component
-Mll_5 = ConvolutionOperators.truncate(Mll_5f, ConvolutionOperators.tailindex(Mll_5f))
+# inverse of time-domain Gram matrix
+iGmx = PΛH * iNyx * ℙΛ + PΣ * iNyx * ℙΣH + 2 * PΛH * iNyx * ℙΣH
+lhs_sl = ℙΛ * Msl_5 * PΛH
+lhs_dg = ℙΛ * Mss_5 * PΣ + ℙΣH * Mls_5 * PΣ
+lhs_ll = ℙΣH * lhs4 * PΛH
 
-lhs5 = ℙΛ * llm_mfie * (Mss_5 * PΣ + Msl_5 * PΛH) + ℙΣH * 𝕄0 * PΣ * iNyx * ℙΣH * (Msl_5 * PΣ + Mll_5 * PΛH)
-# lhs5 = ℙΛ * llm_mfie * (Mss_5 * PΣ + Msl_5 * PΛH) + ℙΣH * llm_mfie * Msl_5 * PΣ
+lhs5 = ℙΛ * 𝕄0 * iGmx * lhs_sl + ℙΛ * 𝕄0 * iGmx * lhs_dg +  ℙΛ * 𝕄0 * iGmx * lhs_ll + Δt/2 * ℙΣH * 𝕄0 * PΣ * iGmx * lhs_sl + Δt/2 * ℙΣH * 𝕄0 * PΣ * iGmx * lhs_dg + Δt/2 * ℙΣH * 𝕄0 * PΣ * iGmx * lhs_ll
 
-el_linform_5 = @discretise(-1.0iH[k], k∈Y⊗δ)
-es_linform_5 = @discretise(-1.0H[k], k∈Y⊗p)
+el_linform_5 = @discretise(-1.0H[k], k∈Y⊗p)
+es_linform_5 = @discretise(-1.0H[k], k∈Y⊗δ)
 
-el_5 = BEAST.td_assemble(el_linform_5.linform, el_linform_5.test_space_dict)
-es_5 = 1/Δt * BEAST.td_assemble(es_linform_5.linform, es_linform_5.test_space_dict)
+el_5 = 1/Δt * BEAST.td_assemble(el_linform_5.linform, el_linform_5.test_space_dict)
+es_5 = BEAST.td_assemble(es_linform_5.linform, es_linform_5.test_space_dict)
 
-rhs5 = ℙΣH * 𝕄0 * PΣ * iNyx * ℙΣH * el_5 + ℙΛ * llm_mfie * es_5
+rhs5 = ℙΛ * 𝕄0 * PΛH * iGmx * ℙΛ * es_5 + ℙΛ * 𝕄0 * PΛH * iGmx * ℙΣH * el_5 + Δt * ℙΣH * 𝕄0 * PΣ * iGmx * ℙΛ * es_5 + Δt * ℙΣH * 𝕄0 * PΣ * iGmx * ℙΣH * el_5
 
 Z05 = zeros(Float64, size(lhs5)[1:2])
 ConvolutionOperators.timeslice!(Z05, lhs5, 1)
-iZ05 = inv(Z05)
-y5 = marchonintime(iZ05, lhs5, rhs5, Nt)
+# iZ05 = inv(Z05)
+# y5 = marchonintime(iZ05, lhs5, rhs5, Nt)
 
-j5 = zeros(eltype(y5), size(y5)[1:2])
-j5[:, 1] = PΛH * y5[:, 1] + 1.0/Δt * PΣ * y5[:, 1]
-for i in 2:Nt
-    j5[:, i] = PΛH * y5[:, i] + 1.0/Δt * PΣ * (y5[:, i] - y5[:, i-1])
-end
+# j5 = zeros(eltype(y5), size(y5)[1:2])
+# j5[:, 1] = PΛH * y5[:, 1] + 1.0/Δt * PΣ * y5[:, 1]
+# for i in 2:Nt
+#     j5[:, i] = PΛH * y5[:, i] + 1.0/Δt * PΣ * (y5[:, i] - y5[:, i-1])
+# end
 
 #=
-    FORM 6: TD-CFIE (Beghein et. al., 2013)
+    FORM 6: standard TD-CFIE (Beghein et. al., 2013)
 =#
-BEAST.@defaultquadstrat (K, Y⊗δ, X⊗∂q) BEAST.OuterNumInnerAnalyticQStrat(7)
-
-mfio_bilform_6 = @discretise (0.5(N⊗I) + 1.0K)[k,j] k∈Y⊗δ j∈X⊗∂q
-mfio6 = -1/Δt * Gxx * iNyx * BEAST.td_assemble(mfio_bilform_6.bilform, mfio_bilform_6.test_space_dict, mfio_bilform_6.trial_space_dict) 
-lhs6 = lhs1 + η * mfio6
-
-mlinform_6 = @discretise(-1.0∂H[k], k∈Y⊗δ)
-rhs6 = rhs1 - η * Gxx * iNyx * BEAST.td_assemble(mlinform_6.linform, mlinform_6.test_space_dict)
+lhs6 = lhs1 + (-η) * Gxx * iNyx * lhs4
+rhs6 = rhs1 + (-η) * Gxx * iNyx * rhs4
 
 Z06 = zeros(Float64, size(lhs6)[1:2])
 ConvolutionOperators.timeslice!(Z06, lhs6, 1)
 iZ06 = inv(Z06)
-jq6 = marchonintime(iZ06, lhs6, rhs6, Nt)
-j6 = q2h(jq6)
+j6 = marchonintime(iZ06, lhs6, rhs6, Nt)
 
 #=
     FORM 7: qHP localized CP TD-CFIE
@@ -246,36 +242,87 @@ for i in 2:Nt
     j7[:, i] = PΛH * y7[:, i] + 1.0/Δt * PΣ * (y7[:, i] - y7[:, i-1])
 end
 
-using Printf
-open("current-sphere-h_0.3-tau_0.1-width_8.txt", "a") do io
-    for i in 1:Nt
-        @printf(io, "%.10f %.10f %.10f %.10f %.10f %.10f\n", i*Δt, log10.(abs.(j1[1, i])), log10.(abs.(j3[1, i])), log10.(abs.(j4[1, i])), log10.(abs.(j6[1, i])), log10.(abs.(j7[1, i])))
-    end
-end;
+# using Printf
+# open("qHP-TD_CFIE_current-sphere-h_0.2-tau_0.1-width_8.txt", "a") do io
+#     for i in 1:Nt
+#         @printf(io, "%.10f %.10f %.10f %.10f %.10f %.10f\n", i*Δt, log10.(abs.(j1[1, i])), log10.(abs.(j3[1, i])), log10.(abs.(j4[1, i])), log10.(abs.(j6[1, i])), log10.(abs.(j7[1, i])))
+#     end
+# end;
 
 ## Plot results
-using Plots
-plotly()
-plt = Plots.plot(
-    width = 600, height=400,
-    grid = false,
-    xscale = :identity, 
-    yaxis = :log10, 
-    xlims = (0, 204),
-    xticks = [0; 50; 100; 150; 200],
-    # xtickfont = font(9, "Times"),
-    ylims = (1e-16, 2), 
-    yticks = [1e-15; 1e-10; 1e-5; 1e0;],
-    # ytickfont = font(9),
-    xlabel = "c t (m)",
-    ylabel = "j(t) (A/m)")
+# using Plots
+# plotly()
+# plt = Plots.plot(
+#     width = 600, height=400,
+#     grid = false,
+#     xscale = :identity, 
+#     yaxis = :log10, 
+#     xlims = (0, 102),
+#     xticks = [0; 50; 100],
+#     # xtickfont = font(9, "Times"),
+#     ylims = (1e-18, 2), 
+#     yticks = [1e-15; 1e-10; 1e-5; 1e0;],
+#     # ytickfont = font(9),
+#     xlabel = "c t (m)",
+#     ylabel = "j(t) (A/m)")
 
-x = Δt * [1:1:Nt;]
-plot!(x, abs.(j1[1, :]), label="TD-EFIE")
-plot!(x, abs.(j3[1,:]), label="CP qHP TD-EFIE")
-plot!(x, abs.(j4[1,:]), label="TD-MFIE")
-plot!(x, abs.(j5[1,:]), label="qHP TD-MFIE")
-plot!(x, abs.(j6[1,:]), label=" standard TD-CFIE")
-plot!(x, abs.(j7[1,:]), label="qHP TD-CFIE")
+# x = Δt * [1:1:Nt;]
+# plot!(x, abs.(j1[1, :]), label="standard TD-EFIE")
+# plot!(x, abs.(j3[1,:]), label="CP qHP TD-EFIE")
+# plot!(x, abs.(j4[1,:]), label="standard TD-MFIE")
+# # plot!(x, abs.(j5[1,:]), label="qHP TD-MFIE")
+# plot!(x, abs.(j6[1,:]), label=" standard TD-CFIE")
+# plot!(x, abs.(j7[1,:]), label="qHP TD-CFIE")
 
-savefig("symmetrized_CFIE.pdf")
+# savefig("qHP-TD_CFIE_current.pdf")
+
+
+using SphericalScattering, LinearAlgebra, StaticArrays, FastGaussQuadrature
+
+function Hdivnorm(j, ω)
+    𝕋0 = ω .* 𝕋0s + 1/ω .* 𝕋0h
+    real(dot(j, 𝕋0 * j))
+end
+
+function L2norm(j)
+    real(dot(j, j))
+end
+
+jω1, Δω, ω0 = fouriertransform(j1, Δt, 0.0, 2)
+jω3, _, _ = fouriertransform(j3, Δt, 0.0, 2)
+jω4, _, _ = fouriertransform(j4, Δt, 0.0, 2)
+jω6, _, _ = fouriertransform(j6, Δt, 0.0, 2)
+jω7, _, _ = fouriertransform(j7, Δt, 0.0, 2)
+
+ω = collect(ω0 .+ (0:Nt-1)*Δω)
+err1 = zeros(Nt)
+err3 = zeros(Nt)
+err4 = zeros(Nt)
+err6 = zeros(Nt)
+err7 = zeros(Nt)
+
+sp = PECSphere(radius = radius, embedding =  Medium(ε, μ))
+
+for i in Nt/2+2:Nt
+    @show i
+    κ = ω[i]
+
+    eexc = Maxwell3D.planewave(direction=ẑ, polarization=x̂, wavenumber=κ)
+    hexc = -1/(im*κ*c)*curl(eexc)
+
+    ex = planeWave(embedding =  Medium(ε, μ), frequency=ω[i]/2π, direction=ẑ)
+    Httf = r -> scatteredfield(sp, ex, MagneticField([SVector(r/norm(r))]))[1] + hexc(r)
+    httf = (n × Httf) × n
+    jref = iNyx * assemble(@discretise(httf[k], k∈Y))
+
+    err1[i] = L2norm(jref - jω1[:, i]/fgaussian(ω[i])) / L2norm(jref)
+    @show err1[i]    
+    err3[i] = L2norm(jref - jω3[:, i]/fgaussian(ω[i])) / L2norm(jref)
+    @show err3[i]   
+    err4[i] = L2norm(jref - jω4[:, i]/fgaussian(ω[i])) / L2norm(jref)
+    @show err4[i]   
+    err6[i] = L2norm(jref - jω6[:, i]/fgaussian(ω[i])) / L2norm(jref)
+    @show err6[i]   
+    err7[i] = L2norm(jref - jω7[:, i]/fgaussian(ω[i])) / L2norm(jref)
+    @show err7[i]   
+end
