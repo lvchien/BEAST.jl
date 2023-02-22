@@ -62,7 +62,7 @@ iNyx = inv(Matrix(Nyx))
 iNxy = -transpose(iNyx)
 
 # assembly of static operators
-nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 7, 7, 7, 7)
+nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 9, 9, 9, 9)
 
 𝕋is = assemble(Tis, Y, Y, quadstrat=nearstrat)
 𝕋ih = assemble(Tih, Y, Y, quadstrat=nearstrat)
@@ -76,7 +76,7 @@ nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 7, 7, 7, 7)
 
 # Plane wave
 duration = 80 * Δt * c                                        
-delay = 240 * Δt                                        
+delay = 120 * Δt                                        
 amplitude = 1.0
 gaussian = creategaussian(duration, delay, amplitude)
 fgaussian = fouriertransform(gaussian)
