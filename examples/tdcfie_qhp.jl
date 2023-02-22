@@ -76,7 +76,7 @@ nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 13, 13, 13, 13)
 
 # Plane wave
 duration = 80 * Δt * c                                        
-delay = 240 * Δt                                        
+delay = 120 * Δt                                        
 amplitude = 1.0
 gaussian = creategaussian(duration, delay, amplitude)
 fgaussian = fouriertransform(gaussian)
