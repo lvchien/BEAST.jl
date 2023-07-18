@@ -1,6 +1,4 @@
 
-abstract type Helmholtz3DOp{T,K} <: MaxwellOperator3D end
-abstract type Helmholtz3DOpReg{T,K} <: MaxwellOperator3DReg end
 abstract type Helmholtz3DOp{T,K} <: MaxwellOperator3D{T,K} end
 abstract type Helmholtz3DOpReg{T,K} <: MaxwellOperator3DReg{T,K} end
 """
@@ -9,7 +7,6 @@ abstract type Helmholtz3DOpReg{T,K} <: MaxwellOperator3DReg{T,K} end
 ```
 with ``G(x,y) = \\frac{e^{-γ |x-y|}}{4 π |x-y|}``
 """
-struct HH3DHyperSingularFDBIO{T,K} <: Helmholtz3DOp{T,K}
 struct HH3DHyperSingularFDBIO{T,K} <: Helmholtz3DOp{T,K}
     "coefficient of the weakly singular term"
     alpha::T
@@ -32,18 +29,15 @@ a(u,v) = α ∬_{Γ×Γ} u(x) G_{γ}(|x-y|) v(y)
 with ``G_{γ}(r) = \\frac{e^{-γr}}{4πr}``.
 """
 struct HH3DSingleLayerFDBIO{T,K} <: Helmholtz3DOp{T,K}
-struct HH3DSingleLayerFDBIO{T,K} <: Helmholtz3DOp{T,K}
     alpha::T
     gamma::K
 end
 
 struct HH3DSingleLayerReg{T,K} <: Helmholtz3DOpReg{T,K}
-struct HH3DSingleLayerReg{T,K} <: Helmholtz3DOpReg{T,K}
     alpha::T
     gamma::K
 end
 
-struct HH3DSingleLayerSng{T,K} <: Helmholtz3DOp{T,K}
 struct HH3DSingleLayerSng{T,K} <: Helmholtz3DOp{T,K}
     alpha::T
     gamma::K
