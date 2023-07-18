@@ -1,15 +1,12 @@
 
 abstract type Helmholtz3DOp{T,K} <: MaxwellOperator3D end
 abstract type Helmholtz3DOpReg{T,K} <: MaxwellOperator3DReg end
-abstract type Helmholtz3DOp{T,K} <: MaxwellOperator3D{T,K} end
-abstract type Helmholtz3DOpReg{T,K} <: MaxwellOperator3DReg{T,K} end
 """
 ```
 ∫_Γ dx ∫_Γ dy \\left(α G g(x) n_x ⋅ n_y f(y) + β G \\mbox{curl} g(x) ⋅ \\mbox{curl} f(y) \\right)
 ```
 with ``G(x,y) = \\frac{e^{-γ |x-y|}}{4 π |x-y|}``
 """
-struct HH3DHyperSingularFDBIO{T,K} <: Helmholtz3DOp{T,K}
 struct HH3DHyperSingularFDBIO{T,K} <: Helmholtz3DOp{T,K}
     "coefficient of the weakly singular term"
     alpha::T
@@ -25,6 +22,14 @@ end
 
 HH3DHyperSingularFDBIO(gamma) = HH3DHyperSingularFDBIO(gamma^2, one(gamma), gamma)
 
+scalartype(op::Helmholtz3DOp{T,K}) where {T, K <: Nothing} = T
+scalartype(op::Helmholtz3DOp{T,K}) where {T, K} = promote_type(T, K)
+
+alpha(op::Union{Helmholtz3DOp{T,K},Helmholtz3DOpReg{T,K}}) where {T, K} = op.alpha
+beta(op::HH3DHyperSingularFDBIO{T,K}) where {T, K} = op.beta
+gamma(op::Union{Helmholtz3DOp{T,K}, Helmholtz3DOpReg{T,K}}) where {T, K <: Nothing} = T(0)
+gamma(op::Union{Helmholtz3DOp{T,K}, Helmholtz3DOpReg{T,K}}) where {T, K} = op.gamma
+
 """
 ```math
 a(u,v) = α ∬_{Γ×Γ} u(x) G_{γ}(|x-y|) v(y)
@@ -32,42 +37,23 @@ a(u,v) = α ∬_{Γ×Γ} u(x) G_{γ}(|x-y|) v(y)
 with ``G_{γ}(r) = \\frac{e^{-γr}}{4πr}``.
 """
 struct HH3DSingleLayerFDBIO{T,K} <: Helmholtz3DOp{T,K}
-struct HH3DSingleLayerFDBIO{T,K} <: Helmholtz3DOp{T,K}
     alpha::T
     gamma::K
 end
 
-struct HH3DSingleLayerReg{T,K} <: Helmholtz3DOpReg{T,K}
 struct HH3DSingleLayerReg{T,K} <: Helmholtz3DOpReg{T,K}
     alpha::T
     gamma::K
 end
 
 struct HH3DSingleLayerSng{T,K} <: Helmholtz3DOp{T,K}
-struct HH3DSingleLayerSng{T,K} <: Helmholtz3DOp{T,K}
     alpha::T
     gamma::K
-end
-
-function sign_upon_permutation(op::HH3DSingleLayerFDBIO, I, J)
-    return 1
-end
-
-function sign_upon_permutation(op::HH3DSingleLayerFDBIO, I, J)
-    return 1
 end
 
 struct HH3DDoubleLayerFDBIO{T,K} <: Helmholtz3DOp{T,K}
     alpha::T
     gamma::K
-end
-
-function sign_upon_permutation(op::HH3DDoubleLayerFDBIO, I, J)
-    return Combinatorics.levicivita(J)
-end
-
-function sign_upon_permutation(op::HH3DDoubleLayerFDBIO, I, J)
-    return Combinatorics.levicivita(J)
 end
 
 struct HH3DDoubleLayerTransposedFDBIO{T,K} <: Helmholtz3DOp{T,K}
@@ -171,6 +157,7 @@ function quadrule(op::HH3DSingleLayerFDBIO,
     trial_quadpoints = qd.bsis_qp
     h2 = volume(trial_element)
     xtol2 = 0.2 * 0.2
+    k2 = abs2(gamma(op))
     k2 = abs2(gamma(op))
     max(dmin2*k2, dmin2/16h2) < xtol2 && return WiltonSERule(
         test_quadpoints[1,i],
@@ -328,6 +315,7 @@ function quadrule(op::HH3DDoubleLayerTransposedFDBIO,
 #=     h2 = volume(trial_element)
     xtol2 = 0.2 * 0.2
     k2 = abs2(gamma(op))
+    k2 = abs2(gamma(op))
 
     max(dmin2*k2, dmin2/16h2) < xtol2 && return WiltonSERule(
         test_quadpoints[1,i],
@@ -365,6 +353,7 @@ function quadrule(op::HH3DDoubleLayerFDBIO,
     trial_quadpoints = quadrature_data.bsis_qp
     h2 = volume(trial_element)
     xtol2 = 0.2 * 0.2
+    k2 = abs2(gamma(op))
     k2 = abs2(gamma(op))
 
 #=     max(dmin2*k2, dmin2/16h2) < xtol2 && return WiltonSERule(
@@ -404,8 +393,8 @@ end
 
 
 function (igd::Integrand{<:HH3DHyperSingularFDBIO})(x,y,f,g)
-    α = igd.operator.alpha
-    β = igd.operator.beta
+    α = alpha(igd.operator)
+    β = beta(igd.operator)
     γ = gamma(igd.operator)
 
     r = cartesian(x) - cartesian(y)
@@ -426,6 +415,8 @@ function integrand(op::HH3DHyperSingularFDBIO,
 
     α = alpha(op)
     β = beta(op)
+    α = alpha(op)
+    β = beta(op)
 
     G = kernel.green
 
@@ -444,11 +435,11 @@ end
 
 HH3DSingleLayerFDBIO(gamma) = HH3DSingleLayerFDBIO(one(gamma), gamma)
 
-regularpart(op::HH3DSingleLayerFDBIO) = HH3DSingleLayerReg(op.alpha, gamma(op))
-singularpart(op::HH3DSingleLayerFDBIO) = HH3DSingleLayerSng(op.alpha, gamma(op))
+regularpart(op::HH3DSingleLayerFDBIO) = HH3DSingleLayerReg(alpha(op), gamma(op))
+singularpart(op::HH3DSingleLayerFDBIO) = HH3DSingleLayerSng(alpha(op), gamma(op))
 
 function (igd::Integrand{<:HH3DSingleLayerFDBIO})(x,y,f,g)
-    α = igd.operator.alpha
+    α = alpha(igd.operator)
     γ = gamma(igd.operator)
 
    r = cartesian(x) - cartesian(y)
@@ -464,7 +455,7 @@ function (igd::Integrand{<:HH3DSingleLayerFDBIO})(x,y,f,g)
 end
 
 function (igd::Integrand{<:HH3DSingleLayerReg})(x,y,f,g)
-    α = igd.operator.alpha
+    α = alpha(igd.operator)
     γ = gamma(igd.operator)
 
     r = cartesian(x) - cartesian(y)
@@ -483,6 +474,7 @@ function integrand(op::Union{HH3DSingleLayerFDBIO,HH3DSingleLayerReg},
         kernel, test_values, test_element, trial_values, trial_element)
 
     α = alpha(op)
+    α = alpha(op)
     G = kernel.green
 
     g = test_values.value
@@ -498,7 +490,7 @@ function innerintegrals!(op::HH3DSingleLayerSng, test_neighborhood,
         test_elements, trial_element, zlocal, quadrature_rule::WiltonSERule, dx)
 
     γ = gamma(op)
-    α = op.alpha
+    α = alpha(op)
 
     s1, s2, s3 = trial_element.vertices
 
@@ -520,7 +512,6 @@ HH3DDoubleLayerFDBIO(gamma) = HH3DDoubleLayerFDBIO(one(gamma), gamma)
 
 function (igd::Integrand{<:HH3DDoubleLayerFDBIO})(x,y,f,g)
     γ = gamma(igd.operator)
-    α = igd.operator.alpha
 
     r = cartesian(x) - cartesian(y)
     R = norm(r)
@@ -549,7 +540,6 @@ end
 
 function (igd::Integrand{<:HH3DDoubleLayerTransposedFDBIO})(x,y,f,g)
     γ = gamma(igd.operator)
-    α = igd.operator.alpha
 
     r = cartesian(x) - cartesian(y)
     R = norm(r)
@@ -570,3 +560,111 @@ function integrand(biop::HH3DDoubleLayerTransposedFDBIO,
     np = normal(mp)
     fp[1] * dot(np, kernel.gradgreen) * fq[1]
 end
+
+
+module Helmholtz3D
+
+    using ..BEAST
+    const Mod = BEAST
+
+    function singlelayer(;
+        alpha=nothing,
+        gamma=nothing,
+        wavenumber=nothing
+    )
+
+        alpha, gamma = parameter_handler(alpha, gamma, wavenumber)
+
+        return Mod.HH3DSingleLayerFDBIO(alpha,gamma)
+    end
+
+    function doublelayer(;
+        alpha=nothing,
+        gamma=nothing,
+        wavenumber=nothing
+    )
+
+        alpha, gamma = parameter_handler(alpha, gamma, wavenumber)
+
+        return Mod.HH3DDoubleLayerFDBIO(alpha, gamma)
+    end
+
+    function doublelayer_transposed(;
+        alpha=nothing,
+        gamma=nothing,
+        wavenumber=nothing
+    )
+
+        alpha, gamma = parameter_handler(alpha, gamma, wavenumber)
+
+        return Mod.HH3DDoubleLayerTransposedFDBIO(alpha, gamma)
+    end
+
+    function hypersingular(;
+        alpha=nothing,
+        beta=nothing,
+        gamma=nothing,
+        wavenumber=nothing
+    )
+
+        gamma, wavenumber = gamma_wavenumber_handler(gamma, wavenumber)
+
+        if alpha === nothing
+            if gamma !== nothing
+                alpha = gamma^2
+            else
+                alpha = 0.0 # In the long run, this should probably be rather 'nothing'
+            end
+        end
+
+        if beta === nothing
+            if gamma !== nothing
+                beta = one(gamma)
+            else
+                beta = one(alpha)
+            end
+        end
+
+        return Mod.HH3DHyperSingularFDBIO(alpha, beta, gamma)
+    end
+
+    planewave(;
+            direction=error("direction is a required argument"),
+            wavenumber=error("wavenumber is a required arguement"),
+            amplitude=one(eltype(direction))) =
+        Mod.HH3DPlaneWave(direction, wavenumber)
+
+    function gamma_wavenumber_handler(gamma, wavenumber)
+        if (gamma !== nothing) && (wavenumber !== nothing)
+            error("Supply one of (not both) gamma or wavenumber")
+        end
+
+        if gamma === nothing && (wavenumber !== nothing)
+            if iszero(real(wavenumber))
+                gamma = -imag(wavenumber)
+            else
+                gamma = im*wavenumber
+            end
+        end
+
+        return gamma, wavenumber
+    end
+
+    function parameter_handler(alpha, gamma, wavenumber)
+
+        gamma, wavenumber = gamma_wavenumber_handler(gamma, wavenumber)
+
+        if alpha === nothing
+            if gamma !== nothing
+                alpha = one(real(typeof(gamma)))
+            else
+                # We are dealing with a static problem. Default to double precision.
+                alpha = 1.0
+            end
+        end
+
+        return alpha, gamma
+    end
+end
+
+export Helmholtz3D
