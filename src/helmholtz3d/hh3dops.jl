@@ -421,8 +421,8 @@ end
 function integrand(op::HH3DHyperSingularFDBIO,
         kernel, test_values, test_element, trial_values, trial_element)
 
-    α = op.alpha
-    β = op.beta
+    α = alpha(op)
+    β = beta(op)
 
     G = kernel.green
 
@@ -479,7 +479,7 @@ end
 function integrand(op::Union{HH3DSingleLayerFDBIO,HH3DSingleLayerReg},
         kernel, test_values, test_element, trial_values, trial_element)
 
-    α = op.alpha
+    α = alpha(op)
     G = kernel.green
 
     g = test_values.value
