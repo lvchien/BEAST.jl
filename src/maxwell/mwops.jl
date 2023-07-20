@@ -1,11 +1,5 @@
-abstract type MaxwellOperator3D{T,K} <: IntegralOperator end
-abstract type MaxwellOperator3DReg{T,K} <: MaxwellOperator3D{T,K} end
-
-scalartype(op::MaxwellOperator3D{T,K}) where {T, K <: Nothing} = T
-scalartype(op::MaxwellOperator3D{T,K}) where {T, K} = promote_type(T, K)
-
-gamma(op::MaxwellOperator3D{T,K}) where {T, K <: Nothing} = T(0)
-gamma(op::MaxwellOperator3D{T,K}) where {T, K} = op.gamma
+abstract type MaxwellOperator3D <: IntegralOperator end
+abstract type MaxwellOperator3DReg <: MaxwellOperator3D end
 
 struct KernelValsMaxwell3D{T,U,P,Q}
     "gamma = im * wavenumber"
@@ -110,9 +104,8 @@ struct MWDoubleLayer3DSng{T,K} <: MaxwellOperator3D{T,K}
   gamma::K
 end
 
-struct MWDoubleLayer3DReg{T,K} <: MaxwellOperator3DReg{T,K}
-    alpha::T
-    gamma::K
+struct MWDoubleLayer3DReg{T} <: MaxwellOperator3DReg
+    gamma::T
 end
 
 MWDoubleLayer3D(gamma) = MWDoubleLayer3D(1.0, gamma) # For legacy purposes
