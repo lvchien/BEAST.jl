@@ -22,6 +22,9 @@ end
 
 HH3DHyperSingularFDBIO(gamma) = HH3DHyperSingularFDBIO(gamma^2, one(gamma), gamma)
 
+alpha(op::Union{Helmholtz3DOp{T,K},Helmholtz3DOpReg{T,K}}) where {T, K} = op.alpha
+beta(op::HH3DHyperSingularFDBIO{T,K}) where {T, K} = op.beta
+
 """
 ```math
 a(u,v) = α ∬_{Γ×Γ} u(x) G_{γ}(|x-y|) v(y)
