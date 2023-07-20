@@ -103,8 +103,14 @@ end
 
 sign_upon_permutation(op::MWDoubleLayer3D, I, J) = 1
 
-struct MWDoubleLayer3DSng{T} <: MaxwellOperator3D
-    gamma::T
+struct MWDoubleLayer3DSng{T,K} <: MaxwellOperator3D{T,K}
+  alpha::T
+  gamma::K
+end
+
+struct MWDoubleLayer3DReg{T,K} <: MaxwellOperator3DReg{T,K}
+    alpha::T
+    gamma::K
 end
 
 MWDoubleLayer3D(gamma) = MWDoubleLayer3D(1.0, gamma) # For legacy purposes
