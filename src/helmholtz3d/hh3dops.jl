@@ -25,14 +25,6 @@ end
 
 HH3DHyperSingularFDBIO(gamma) = HH3DHyperSingularFDBIO(gamma^2, one(gamma), gamma)
 
-scalartype(op::Helmholtz3DOp{T,K}) where {T, K <: Nothing} = T
-scalartype(op::Helmholtz3DOp{T,K}) where {T, K} = promote_type(T, K)
-
-alpha(op::Union{Helmholtz3DOp{T,K},Helmholtz3DOpReg{T,K}}) where {T, K} = op.alpha
-beta(op::HH3DHyperSingularFDBIO{T,K}) where {T, K} = op.beta
-gamma(op::Union{Helmholtz3DOp{T,K}, Helmholtz3DOpReg{T,K}}) where {T, K <: Nothing} = T(0)
-gamma(op::Union{Helmholtz3DOp{T,K}, Helmholtz3DOpReg{T,K}}) where {T, K} = op.gamma
-
 """
 ```math
 a(u,v) = α ∬_{Γ×Γ} u(x) G_{γ}(|x-y|) v(y)
