@@ -101,9 +101,8 @@ struct MWDoubleLayer3DSng{T} <: MaxwellOperator3D
     gamma::T
 end
 
-struct MWDoubleLayer3DReg{T,K} <: MaxwellOperator3DReg{T,K}
-    alpha::T
-    gamma::K
+struct MWDoubleLayer3DReg{T} <: MaxwellOperator3DReg
+    gamma::T
 end
 
 MWDoubleLayer3D(gamma) = MWDoubleLayer3D(1.0, gamma) # For legacy purposes
