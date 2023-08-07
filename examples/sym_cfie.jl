@@ -1,5 +1,5 @@
 using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators, Plots, Printf
-include("genmesh.jl")
+include("utils/genmesh.jl")
 
 # Computational mesh
 meshsize = 0.2

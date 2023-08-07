@@ -1,4 +1,4 @@
-include("../lib/gmsh.jl")
+include(joinpath(dirname(pathof(BEAST)),"../lib/gmsh.jl"))
 
 using .gmsh
 using CompScienceMeshes

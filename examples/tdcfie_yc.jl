@@ -1,5 +1,5 @@
 using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators, Printf
-include("genmesh.jl")
+include("utils/genmesh.jl")
 
 # Physical coefficients
 c = 1.0

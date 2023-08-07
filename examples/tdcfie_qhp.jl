@@ -1,5 +1,5 @@
 using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators
-include("genmesh.jl")
+include("utils/genmesh.jl")
 
 setminus(A,B) = submesh(!in(B), A)
 
