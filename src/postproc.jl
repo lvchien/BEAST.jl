@@ -230,7 +230,7 @@ function potential!(store, op, points, basis::SpaceTimeBasis)
 	tels, tad = assemblydata(time_basis)
 
 
-	zlocal = Array{T}(numrefs,Nt)
+	zlocal = Array{T}(undef, numrefs,Nt)
 	qdata = quaddata(op,refs,trefs,els,tels)
 
 	#println("Computing nearfield.")
