@@ -2,6 +2,9 @@ abstract type RefSpace{T,D} end
 abstract type AbstractSpace end
 abstract type Space{T} <: AbstractSpace end
 
+Base.length(s::AbstractSpace) = numfunctions(s)
+Base.in(x, s::AbstractSpace) = (x => s)
+
 """
     scalartype(s)
 
@@ -53,9 +56,17 @@ geometry(s::Space) = s.geo
 basisfunction(s::Space, i) = s.fns[i]
 numfunctions(space::Space) = length(space.fns)
 
-mutable struct DirectProductSpace{T} <: AbstractSpace
-    factors::Vector{Space{T}}
+struct DirectProductSpace{T,S<:AbstractSpace} <: AbstractSpace
+    factors::Vector{S}
 end
+
+function DirectProductSpace(factors::Vector{S}) where {S<:AbstractSpace}
+    @assert !isempty(factors)
+    T = scalartype(factors...)
+    return DirectProductSpace{T,S}(factors)
+end
+
+Base.getindex(dps::DirectProductSpace, i) = dps.factors[i]
 
 defaultquadstrat(op, tfs::DirectProductSpace, bfs::DirectProductSpace) = defaultquadstrat(op, tfs.factors[1], bfs.factors[1])
 defaultquadstrat(op, tfs::Space, bfs::DirectProductSpace) = defaultquadstrat(op, tfs, bfs.factors[1])
@@ -66,13 +77,27 @@ defaultquadstrat(op, tfs::DirectProductSpace, bfs::Space) = defaultquadstrat(op,
 # defaultquadstrat(op, tfs::DirectProductSpace, bfs::RefSpace) = defaultquadstrat(op, tfs.factors[1], bfs)
 # scalartype(sp::DirectProductSpace{T}) where {T} = T
 
-export cross, ×
+# export cross, ×
+export ×
 
-cross(a::Space{T}, b::Space{T}) where {T} = DirectProductSpace(Space{T}[a,b])
-cross(a::DirectProductSpace{T}, b::Space{T}) where {T} = DirectProductSpace(Space{T}[a.factors; b])
+function Base.:+(x::AbstractSpace...)
+    T = scalartype(x...)
+    return DirectProductSpace{T, AbstractSpace}([x...])
+end
+
+cross(a::Space{T}, b::Space{T}) where {T} = DirectProductSpace{T,Space{T}}(Space{T}[a,b])
+cross(a::DirectProductSpace{T}, b::Space{T}) where {T} = DirectProductSpace{T,Space{T}}([a.factors; b])
 numfunctions(S::DirectProductSpace) = sum([numfunctions(s) for s in S.factors])
+Base.length(S::DirectProductSpace) = numfunctions(S)
 scalartype(s::DirectProductSpace{T}) where {T} = T
 geometry(x::DirectProductSpace) = weld(x.geo...)
+
+
+AbstractTrees.children(x::AbstractSpace) = ()
+AbstractTrees.children(x::DirectProductSpace) = x.factors
+
+Base.iterate(x::DirectProductSpace) = iterate(x.factors)
+Base.iterate(x::DirectProductSpace, state) = iterate(x.factors, state)
 
 struct Shape{T}
   cellid::Int
@@ -175,7 +200,7 @@ function assemblydata(basis::Space; onlyactives=true)
         act_to_global = collect(1:num_cells)
     end
 
-    @assert num_active_cells != 0
+    num_active_cells == 0 && return nothing
     elements = instantiate_charts(geo, num_active_cells, active)
 
     max_celltonum = maximum(celltonum)
@@ -272,4 +297,42 @@ function addf!(fn::Vector{<:Shape}, x::Vector, space::Space, idcs::Vector{Int})
             BEAST.add!(fn, cellid, sh.refid, sh.coeff * x[m])
         end
     end
+end
+
+function support(s::BEAST.AbstractSpace, index::Int)
+    geo = geometry(s)
+    s1 = subset(s,[index])
+    charts, ad, activecells = BEAST.assemblydata(s1)
+    return geo[activecells]
+end
+
+function functionvals(s::BEAST.Space, index::Int, n=3)
+
+    s1 = subset(s,[index])
+    charts, ad, a2g = BEAST.assemblydata(s1)
+    support = geometry(s)[a2g]
+    
+    vals = Any[]
+    ctrs = Any[]
+    refs = refspace(s)
+    for (p,ch) in enumerate(charts)
+        for i in 1:n-1
+            for j in 1:n-1
+                i+j < n || continue
+                val = zero(BEAST.valuetype(refs, typeof(ch)))
+                ct = CompScienceMeshes.neighborhood(ch, (i/n,j/n))
+                fx = refs(ct)
+                for r in eachindex(fx)
+                    for (m,a) in ad[p,r]
+                        @assert m == 1
+                        val += a * fx[r].value
+                    end
+                end
+                push!(ctrs, cartesian(ct))
+                push!(vals, val)
+            end
+        end
+    end
+
+    return ctrs, vals
 end

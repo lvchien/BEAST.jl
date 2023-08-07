@@ -171,7 +171,8 @@ Build lagrangec0d1 elements, including (dirichlet=false) or excluding (dirichlet
 """
 function lagrangec0d1(mesh; dirichlet::Bool=true)
     if dirichlet == false
-        return lagrangec0d1(mesh, boundary(mesh))
+        # return lagrangec0d1(mesh, boundary(mesh))
+        return lagrangec0d1(mesh, skeleton(mesh,0))
     else
         return lagrangec0d1_dirichlet(mesh)
     end
@@ -295,6 +296,51 @@ function lagrangec0d1(mesh, nodes::CompScienceMeshes.AbstractMesh{U,1} where {U}
 
     NF = dimension(mesh) + 1
     LagrangeBasis{1,0,NF}(mesh, fns, pos)
+end
+
+
+function lagrangec0d2(mesh::CompScienceMeshes.AbstractMesh{U,3},
+    nodes::CompScienceMeshes.AbstractMesh{U,1},
+    edges::CompScienceMeshes.AbstractMesh{U,2}) where {U}
+
+    Conn = connectivity(nodes, mesh, abs)
+    rows = rowvals(Conn)
+    vals = nonzeros(Conn)
+
+    T = coordtype(mesh)
+    P = vertextype(mesh)
+    S = Shape{T}
+
+    fns = Vector{Vector{S}}()
+    pos = Vector{P}()
+    for (i,node) in enumerate(nodes)
+        fn = Vector{S}()
+        for k in nzrange(Conn,i)
+            cellid = rows[k]
+            refid  = vals[k]
+            push!(fn, Shape(cellid, refid, T(1.0)))
+        end
+        push!(fns,fn)
+        push!(pos,cartesian(center(chart(nodes,node))))
+    end
+
+    Conn = connectivity(edges, mesh, abs)
+    rows = rowvals(Conn)
+    vals = nonzeros(Conn)
+
+    for (i,edge) in enumerate(edges)
+        fn = Vector{S}()
+        for k in nzrange(Conn,i)
+            cellid = rows[k]
+            refid  = vals[k]
+            push!(fn, Shape(cellid, 3+refid, T(1.0)))
+        end
+        push!(fns,fn)
+        push!(pos,cartesian(center(chart(edges,edge))))
+    end
+
+    NF = 6
+    LagrangeBasis{2,0,NF}(mesh, fns, pos)
 end
 
 
@@ -483,6 +529,8 @@ gradient(space::LagrangeBasis{1,0}, geo, fns) = NDLCCBasis(geo, fns)
 # gradient(space::LagrangeBasis{1,0}, geo::CompScienceMeshes.AbstractMesh{U,3} where {U}, fns) = NDBasis(geo, fns)
 
 curl(space::LagrangeBasis{1,0}, geo, fns) = RTBasis(geo, fns)
+
+curl(space::LagrangeBasis{2,0}, geo, fns) = BDMBasis(geo, fns) 
 
 gradient(space::LagrangeBasis{1,0,<:CompScienceMeshes.AbstractMesh{<:Any,2}}, geo, fns) =
     LagrangeBasis{0,-1,1}(geo, fns, space.pos)

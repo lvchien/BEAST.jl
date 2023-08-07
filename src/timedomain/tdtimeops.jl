@@ -131,8 +131,9 @@ end
 #     return MatrixConvolution(Z), (v,m,n,k)->(Z[m,n,k] += v)
 # end
 
-function assemble!(operator::TensorOperator, testfns, trialfns, store,
-    threading = Threading{:multi}; quadstrat=defaultquadstrat(operator, testfns, trialfns))
+function assemble!(operator::TensorOperator, testfns::SpaceTimeBasis, trialfns::SpaceTimeBasis,
+    store, threading::Type{Threading{:multi}};
+    quadstrat=defaultquadstrat(operator, testfns, trialfns))
 
     space_operator = operator.spatial_factor
     time_operator  = operator.temporal_factor
@@ -164,7 +165,8 @@ function assemble!(operator::TensorOperator, testfns, trialfns, store,
             store(w*v,m,n,k)
         end
     end
-    assemble!(space_operator, space_testfns, space_trialfns, store1)
+    assemble!(space_operator, space_testfns, space_trialfns,
+        store1, threading)
 
 end
 

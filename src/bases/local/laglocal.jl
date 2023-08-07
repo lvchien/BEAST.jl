@@ -6,6 +6,7 @@ mutable struct LagrangeRefSpace{T,Degree,Dim1,NF} <: RefSpace{T,NF} end
 numfunctions(s::LagrangeRefSpace{T,D,2}) where {T,D} = D+1
 numfunctions(s::LagrangeRefSpace{T,0,3}) where {T} = 1
 numfunctions(s::LagrangeRefSpace{T,1,3}) where {T} = 3
+numfunctions(s::LagrangeRefSpace{T,2,3}) where {T} = 6
 
 valuetype(ref::LagrangeRefSpace{T}, charttype) where {T} =
         SVector{numfunctions(ref), Tuple{T,T}}
@@ -65,7 +66,7 @@ function (f::LagrangeRefSpace{T,0,3})(t, ::Type{Val{:withcurl}}) where T
 end
 
 
-function curl(ref::LagrangeRefSpace, sh, el)
+function curl(ref::LagrangeRefSpace{T,1,3} where {T}, sh, el)
     sh1 = Shape(sh.cellid, mod1(sh.refid+1,3), -sh.coeff)
     sh2 = Shape(sh.cellid, mod1(sh.refid+2,3), +sh.coeff)
     return [sh1, sh2]
@@ -99,69 +100,6 @@ function gradient(ref::LagrangeRefSpace{T,1,3} where {T}, sh, el)
     sh2 = Shape(sh.cellid, mod1(sh.refid+2,3), -sh.coeff)
     return [sh1, sh2]
 end
-
-# function gradient(phi::LagrangeRefSpace{T,1,3}, shape, chart)
-#
-#     r = shape.refid
-#     vert = chart.vertices[r]
-#     face = faces(chart)[r]
-#     n = normal(face)
-#     h = dot(vert - cartesian(center(face)),n)
-#     gradphi = h*n
-#
-#     output = Shape{T}[]
-#     for s in faces(chart)
-#
-# end
-
-
-# function gradient(ref::LagrangeRefSpace{T,1,3}, sh, tri) where {T}
-
-#     this_vert = tri.vertices[sh.refid]
-#     opp_edge = faces(tri)[sh.refid]
-#     ctr_opp_face = center(opp_edge)
-#     # n = normal(ctr_opp_face)
-#     n = -normalize(cross(opp_edge.tangents[1], normal(tri)))
-#     h = -dot(this_vert - cartesian(ctr_opp_face), n)
-#     @assert h > 0 "h = $h"
-#     gradval = -(1/h)*n
-#     output = Vector{Shape{T}}()
-#     for (i,edge) in enumerate(CompScienceMeshes.edges(tri))
-#         ctr_edge = center(edge)
-#         tgt = tangents(ctr_edge,1)
-#         tgt = normalize(tgt)
-#         lgt = volume(edge)
-#         cff = -lgt * dot(tgt, gradval)
-#         isapprox(cff, 0, atol=sqrt(eps(T))) && continue
-#         push!(output, Shape(sh.cellid, i, sh.coeff * cff))
-#     end
-#     return output
-# end
-
-
-# function gradient(ref::LagrangeRefSpace{T,1,3}, sh, tri) where {T}
-
-#     this_vert = tri.vertices[sh.refid]
-#     opp_edge = faces(tri)[sh.refid]
-#     ctr_opp_face = center(opp_edge)
-#     # n = normal(ctr_opp_face)
-#     n = -normalize(cross(opp_edge.tangents[1], normal(tri)))
-#     h = -dot(this_vert - cartesian(ctr_opp_face), n)
-#     @assert h > 0 "h = $h"
-#     gradval = -(1/h)*n
-#     output = Vector{Shape{T}}()
-#     for (i,edge) in enumerate(CompScienceMeshes.edges(tri))
-#         ctr_edge = center(edge)
-#         tgt = tangents(ctr_edge,1)
-#         tgt = normalize(tgt)
-#         lgt = volume(edge)
-#         cff = -lgt * dot(tgt, gradval)
-#         isapprox(cff, 0, atol=sqrt(eps(T))) && continue
-#         push!(output, Shape(sh.cellid, i, sh.coeff * cff))
-#     end
-#     return output
-# end
-
 
 function gradient(ref::LagrangeRefSpace{T,1,2}, sh, seg) where {T}
 
@@ -225,4 +163,59 @@ function restrict(f::LagrangeRefSpace{T,1}, dom1, dom2) where T
     end
 
     return Q
+end
+
+
+
+## Quadratic Lagrange element on a triangle
+function (f::LagrangeRefSpace{T,2,3})(t) where T
+    u,v,w, = barycentric(t)
+
+    j = jacobian(t)
+    p = t.patch
+
+    #curl=(p[3]-p[2])/j),
+     #   (value=v, curl=(p[1]-p[3])/j),
+      #  (value=w, curl=(p[2]-p[1])/j)
+
+     SVector(
+        (value=u*(2*u-1), curl=(p[3]-p[2])*(4u-1)/j),
+        (value=v*(2*v-1), curl=(p[1]-p[3])*(4v-1)/j),
+        (value=w*(2*w-1), curl=(p[2]-p[1])*(4w-1)/j),
+        (value=4*v*w, curl=4*(w*(p[1]-p[3])+v*(p[2]-p[1]))/j),
+        (value=4*w*u, curl=4*(w*(p[3]-p[2])+u*(p[2]-p[1]))/j),
+        (value=4*u*v, curl=4*(u*(p[1]-p[3])+v*(p[3]-p[2]))/j),
+    )
+end
+
+function (f::LagrangeRefSpace{T,2,3})(t, ::Type{Val{:withcurl}}) where T
+    # Evaluete quadratic Lagrange elements on a triange, together with their curl
+    j = jacobian(t)
+    u,v,w, = barycentric(t)
+    p = t.patch
+    SVector(
+        (value=u*(2*u-1), curl=(p[3]-p[2])*(4u-1)/j),
+        (value=v*(2*v-1), curl=(p[1]-p[3])*(4v-1)/j),
+        (value=w*(2*w-1), curl=(p[2]-p[1])*(4w-1)/j),
+        (value=4*v*w, curl=4*(w*(p[1]-p[3])+v*(p[2]-p[1]))/j),
+        (value=4*w*u, curl=4*(w*(p[3]-p[2])+u*(p[2]-p[1]))/j),
+        (value=4*u*v, curl=4*(u*(p[1]-p[3])+v*(p[3]-p[2]))/j),
+    )
+end
+
+function curl(ref::LagrangeRefSpace{T,2,3} where {T}, sh, el)
+    #curl of lagc0d2 as combination of bdm functions 
+    z=zero(typeof(sh.coeff))
+    if sh.refid < 4
+        sh1 = Shape(sh.cellid, mod1(2*sh.refid+1,6), +sh.coeff)
+        sh2 = Shape(sh.cellid, mod1(2*sh.refid+2,6), -3*sh.coeff)
+        sh3 = Shape(sh.cellid, mod1(2*sh.refid+3,6), +3*sh.coeff)
+        sh4 = Shape(sh.cellid, mod1(2*sh.refid+4,6), -sh.coeff)
+    else
+        sh1 = Shape(sh.cellid, mod1(2*sh.refid+4,6), z*sh.coeff)
+        sh2 = Shape(sh.cellid, mod1(2*sh.refid+5,6), -4*sh.coeff)
+        sh3 = Shape(sh.cellid, mod1(2*sh.refid+6,6), +4*sh.coeff)
+        sh4 = Shape(sh.cellid, mod1(2*sh.refid+7,6), z*sh.coeff)
+    end
+    return [sh1, sh2, sh3, sh4]
 end

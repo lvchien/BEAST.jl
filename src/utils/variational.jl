@@ -108,6 +108,12 @@ end
 
 Base.Int(hv::HilbertVector) = hv.idx
 
+function hilbertspace(s::Symbol, numcomponents::Int)
+    syms = [Symbol(s,i) for i in 1:numcomponents]
+    return [HilbertVector(i,syms,[]) for i in 1:numcomponents]
+end
+
+
 Base.getindex(A::AbstractBlockArray, p::HilbertVector, q::HilbertVector) = A[Block(Int(p),Int(q))]
 Base.getindex(u::AbstractBlockArray, p::HilbertVector) = u[Block(Int(p))]
 
@@ -205,7 +211,7 @@ macro hilbertspace(syms...)
 
         
         len = stop-start+1
-        if len == 1
+        if syms[s] isa Symbol
             sym = syms[s]
             push!(ex.args, :($(esc(sym)) = HilbertVector($k,$space,[])))
             k += 1
@@ -291,6 +297,20 @@ function getindex(A::BEAST.BlockDiagonalOperator, V::Vector{HilbertVector}, U::V
     end
     return BilForm(first(V).space, first(U).space, terms)
 end
+
+function getindex(A::BEAST.BlockFullOperators, V::Vector{HilbertVector}, U::Vector{HilbertVector})
+    op = A.op
+    terms = Vector{BilTerm}()
+    # @assert length(V) == length(U)
+    for v in V
+        for u in U
+            term = BilTerm(v.idx, u.idx, v.opstack, u.opstack, 1, op)
+            push!(terms, term)
+        end
+    end
+    return BilForm(first(V).space, first(U).space, terms)
+end
+
 
 function getindex(op::Any, V::Vector{HilbertVector}, U::Vector{HilbertVector})
     terms = Vector{BilTerm}()
@@ -405,6 +425,57 @@ E.g:
 macro varform(x)
     y = transposecalls!(x, [:+, :-, :*, :^, :(==)])
     esc(y)
+end
+
+
+struct DirectProductKernel
+    bilforms
+end
+
+function Base.getindex(A::DirectProductKernel, V::Vector{HilbertVector}, U::Vector{HilbertVector})
+    terms = Vector{BilTerm}()
+    @assert length(V) == length(U) == length(A.bilforms)
+
+    for (v,u,op) in zip(V,U, A.bilforms)
+        term = BilTerm(v.idx, u.idx, v.opstack, u.opstack, 1, op)
+        push!(terms, term)
+    end
+
+    return BilForm(first(V).space, first(U).space, terms)
+end
+
+struct BlockDiagKernel
+    bilform
+end
+
+function Base.getindex(A::BlockDiagKernel, V::Vector{HilbertVector}, U::Vector{HilbertVector})
+    terms = Vector{BilTerm}()
+    @assert length(V) == length(U)
+
+    op = A.bilform
+    for (v,u) in zip(V,U)
+        term = BilTerm(v.idx, u.idx, v.opstack, u.opstack, 1, op)
+        push!(terms, term)
+    end
+
+    return BilForm(first(V).space, first(U).space, terms)
+end
+
+
+struct OffDiagKernel
+    bilform
+end
+
+function getindex(op::OffDiagKernel, V::Vector{HilbertVector}, U::Vector{HilbertVector})
+    terms = Vector{BilTerm}()
+    for (i,v) in enumerate(V)
+        for (j,u) in enumerate(U)
+            i == j && continue
+            term = BilTerm(v.idx, u.idx, v.opstack, u.opstack, 1, op)
+            push!(terms, term)
+        end
+    end
+    return BilForm(first(V).space, first(U).space, terms)
 end
 
 end

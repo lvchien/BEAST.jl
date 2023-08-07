@@ -15,7 +15,7 @@ function DofInterpolate(basis::LagrangeBasis, field)
 
         cell = cells(basis.geo)[cellid]
 
-        tria = chart(basis.geo, cell)
+        tria = chart(basis.geo, cellid)
 
         vid =  cell[refid]
 
@@ -43,7 +43,7 @@ function DofInterpolate(basis::RTBasis, field)
 
         bfs = basis.fns[b]
 
-        shape = bfs[2]
+        shape = bfs[1]
 
         cellid = shape.cellid
         refid = shape.refid
@@ -58,7 +58,7 @@ function DofInterpolate(basis::RTBasis, field)
 
         edge = simplex(basis.geo.vertices[[v1,v2]]...)
         t = tangents(center(edge),1)
-        tria = chart(basis.geo, cell)
+        tria = chart(basis.geo, cellid)
         
         n = normal(center(tria))
 
@@ -70,7 +70,7 @@ function DofInterpolate(basis::RTBasis, field)
 
     end
 
-    return res
+    return [r for r in res]
 
 end
 
@@ -99,7 +99,7 @@ function DofInterpolate(basis::BDMBasis, field)
 
         edge = simplex(basis.geo.vertices[[v1,v2]]...)
         t = tangents(center(edge),1)
-        tria = chart(basis.geo, cell)
+        tria = chart(basis.geo, cellid)
         
         n = normal(center(tria))
 
