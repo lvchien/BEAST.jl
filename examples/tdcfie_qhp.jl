@@ -11,14 +11,14 @@ c = 1.0
 # Γ = meshtorus(3.0, 1.0, 0.6)
 # Γ = meshsquaretorus4holes(8.0, 2.0, 2.0, 0.8)
 # Γ = meshsquaretorus(8.0, 2.0, 4.0, 0.5)
-fn = joinpath(dirname(pathof(CompScienceMeshes)),"geos/torus.geo")
-Γ = CompScienceMeshes.meshgeo(fn; dim=2, h=0.5)
+fn = joinpath(dirname(pathof(CompScienceMeshes)), "geos/torus.geo")
+Γ = CompScienceMeshes.meshgeo(fn; dim=2, h=0.6)
 ∂Γ = boundary(Γ)
 
 # Connectivity matrices
-edges = setminus(skeleton(Γ,1), ∂Γ)
-verts = setminus(skeleton(Γ,0), skeleton(∂Γ,0))
-cells = skeleton(Γ,2)
+edges = setminus(skeleton(Γ, 1), ∂Γ)
+verts = setminus(skeleton(Γ, 0), skeleton(∂Γ, 0))
+cells = skeleton(Γ, 2)
 
 Σ = Matrix(connectivity(cells, edges, sign))
 Λ = Matrix(connectivity(verts, edges, sign))
@@ -35,7 +35,7 @@ PΛH = Id - PΣ
 X = raviartthomas(Γ)
 Y = buffachristiansen(Γ)
     
-Δt, Nt = 0.1, 3600
+Δt, Nt = 0.15, 3600
 κ = 1/Δt
 
 # Operators
@@ -143,8 +143,8 @@ rhs3 = ECP * ex
 ### FORM 4: standard TD-MFIE
 BEAST.@defaultquadstrat (K, Y⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(9)
 
-bilform_4 = @discretise (0.5(N⊗I) + 1.0K)[k,j] k∈Y⊗δ j∈X⊗h
-Kyx = BEAST.td_assemble(bilform_4.bilform, bilform_4.test_space_dict, bilform_4.trial_space_dict)
+bilform_4 = @discretise (0.5(N⊗I) + K)[k,j] k∈Y⊗δ j∈X⊗h
+Kyx = BEAST.assemble(bilform_4.bilform, bilform_4.test_space_dict, bilform_4.trial_space_dict)
 
 linform_4 = @discretise(-1.0H[k], k∈Y⊗δ)
 hy = BEAST.td_assemble(linform_4.linform, linform_4.test_space_dict)
@@ -195,6 +195,7 @@ rhs7 = rhs3 - rhs5
 
 Z07 = zeros(Float64, size(qhpcfie)[1:2])
 ConvolutionOperators.timeslice!(Z07, qhpcfie, 1)
+Z07 .+= 
 iZ07 = inv(Z07)
 y7 = marchonintime(iZ07, qhpcfie, rhs7, Nt)
 
