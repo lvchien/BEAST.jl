@@ -8,7 +8,7 @@ c = 1.0
 
 # Computational mesh
 # Γ = meshsphere(1.0, 0.3)
-# Γ = meshtorus(3.0, 1.0, 0.6)
+# Γ = meshtorus(3.0, 1.0, 0.5)
 # Γ = meshsquaretorus4holes(8.0, 2.0, 2.0, 0.8)
 # Γ = meshsquaretorus(8.0, 2.0, 4.0, 0.5)
 fn = joinpath(dirname(pathof(CompScienceMeshes)), "geos/torus.geo")
@@ -35,20 +35,19 @@ PΛH = Id - PΣ
 X = raviartthomas(Γ)
 Y = buffachristiansen(Γ)
     
-Δt, Nt = 0.15, 3600
+Δt, Nt = 0.1, 3600
 κ = 1/Δt
 
 # Operators
 I = Identity()																			
 N = NCross()
 Tis = MWSingleLayer3D(κ, κ, 0.0)                                                 # weakly-singular EFIO with imaginary wavenumber
-Tih = MWSingleLayer3D(κ, 0.0, 1/κ)                                               # hypersingular EFIO with imaginary wavenumber
+Tih = MWSingleLayer3D(κ, 0.0, 1.0/κ)                                             # hyper-singular EFIO with imaginary wavenumber
 T = TDMaxwell3D.singlelayer(speedoflight=c)                                      # TD-EFIO
+Ts = MWSingleLayerTDIO(c, -1/c, 0.0, 1, 0)                                       # weakly-singular TD-EFIO (numdiffs=1)
 ∂T = BEAST.derive(T)                                                             # time derivative of T
-Ts = MWSingleLayerTDIO(c, -1/c, 0.0, 1, 0)                                       # weakly-singular TD-EFIO (numdiffs=0)
-∂Ts = BEAST.derive(Ts)                                                           # weakly-singular TD-EFIO (numdiffs=1)
-∂Th = MWSingleLayerTDIO(c, 0.0, -c, 0, 0)                                        # hypersingular TD-EFIO (numdiffs=0)
 Ki = MWDoubleLayer3D(κ)                                                          # MFIO with imaginary wavenumber
+K0 = MWDoubleLayer3D(0.0)                                                        # static MFIO
 K = TDMaxwell3D.doublelayer(speedoflight=c)                                      # TD-MFIO
 
 @hilbertspace k
@@ -63,11 +62,12 @@ iNyx = inv(Matrix(Nyx))
 iNxy = -transpose(iNyx)
 
 # assembly of static operators
-nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 13, 13, 13, 13)
+nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 7, 7, 7, 7)
 
 𝕋is = assemble(Tis, Y, Y, quadstrat=nearstrat)
 𝕋ih = assemble(Tih, Y, Y, quadstrat=nearstrat)
 𝕂i = assemble(Ki, Y, X, quadstrat=nearstrat)
+# 𝕂0 = assemble(K0, Y, X, quadstrat=nearstrat)
 𝕄i = Matrix(-0.5 * Nyx + 𝕂i)
 
 ```
@@ -76,30 +76,26 @@ nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 13, 13, 13, 13)
 
 # Plane wave
 duration = 80 * Δt * c                                        
-delay = 120 * Δt                                        
+delay = 240 * Δt                                        
 amplitude = 1.0
 gaussian = creategaussian(duration, delay, amplitude)
 fgaussian = fouriertransform(gaussian)
 polarisation, direction = x̂, ẑ
 E = planewave(polarisation, direction, gaussian, c)
 iE = planewave(polarisation, direction, integrate(gaussian), c)
-∂E = planewave(polarisation, direction, derive(gaussian), c)
 H = direction × E
 iH = direction × iE
-∂H = direction × ∂E
 
 # Time function spaces
 δ = timebasisdelta(Δt, Nt)	                			                            # delta distribution space
 p = timebasiscxd0(Δt, Nt) 	                			                            # pulse function space
 h = timebasisc0d1(Δt, Nt) 	                			                            # hat function space
-q = BEAST.convolve(p, h)                        		                            # quadratic function space (*Δt)
-∂h = BEAST.derive(h)							                                    # derivative of h
-∂q = BEAST.derive(q)					                                            # first order derivative of q (*Δt)
-ip = integrate(p) 	                			                                    # integral of p
-
+q = timebasisshiftedlagrange(Δt, Nt, 2)                        		                # quadratic function space
+cb = convolve(p, q)                                                                 # cubic function space (*Δt)
+∂cb = derive(cb)                                                                    # first order derivative of cb (*Δt)
 
 ### FORM 1: standard TD-EFIE
-BEAST.@defaultquadstrat (T, X⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(9)
+BEAST.@defaultquadstrat (T, X⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(10)
 
 bilform_1 = @discretise T[k,j] k∈X⊗δ j∈X⊗h
 Txx = BEAST.td_assemble(bilform_1.bilform, bilform_1.test_space_dict, bilform_1.trial_space_dict)
@@ -114,16 +110,16 @@ je = marchonintime(iZ01, Txx, ex, Nt)
 
 
 ### FORM 3: qHP CP TD-EFIE
-BEAST.@defaultquadstrat (Ts, X⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(9)
-BEAST.@defaultquadstrat (∂T, X⊗δ, X⊗q) BEAST.OuterNumInnerAnalyticQStrat(9)
+BEAST.@defaultquadstrat (∂T, X⊗δ, X⊗cb) BEAST.OuterNumInnerAnalyticQStrat(7)
+BEAST.@defaultquadstrat (Ts, X⊗δ, X⊗q) BEAST.OuterNumInnerAnalyticQStrat(7)
 
-Ml_bilform_3 = @discretise Ts[k, j] k∈X⊗δ j∈X⊗h
-Ms_bilform_3 = @discretise ∂T[k, j] k∈X⊗δ j∈X⊗q
+Ms_bilform_3 = @discretise ∂T[k, j] k∈X⊗δ j∈X⊗cb
+Ml_bilform_3 = @discretise Ts[k, j] k∈X⊗δ j∈X⊗q
 
-Ml_3 = BEAST.td_assemble(Ml_bilform_3.bilform, Ml_bilform_3.test_space_dict, Ml_bilform_3.trial_space_dict)
 Ms_3 = 1/Δt * BEAST.td_assemble(Ms_bilform_3.bilform, Ms_bilform_3.test_space_dict, Ms_bilform_3.trial_space_dict)
+Ml_3 = BEAST.td_assemble(Ml_bilform_3.bilform, Ml_bilform_3.test_space_dict, Ml_bilform_3.trial_space_dict)
 
-ECP = (Δt * ℙΣH + ℙΛ) * (𝕋is + 𝕋ih) * iNxy
+ECP = (1/κ * ℙΣH * 𝕋is + ℙΛ * 𝕋is + ℙΛ * 𝕋ih) * (iNxy * PΛH + ℙΣH * iNxy * PΣ)
 
 qhpefie = ECP * (Ml_3 * PΛH + Ms_3 * PΣ)
 rhs3 = ECP * ex
@@ -141,10 +137,10 @@ rhs3 = ECP * ex
 
 
 ### FORM 4: standard TD-MFIE
-BEAST.@defaultquadstrat (K, Y⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(9)
+BEAST.@defaultquadstrat (K, Y⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(10)
 
-bilform_4 = @discretise (0.5(N⊗I) + K)[k,j] k∈Y⊗δ j∈X⊗h
-Kyx = BEAST.assemble(bilform_4.bilform, bilform_4.test_space_dict, bilform_4.trial_space_dict)
+bilform_4 = @discretise (0.5(N⊗I) + 1.0K)[k,j] k∈Y⊗δ j∈X⊗h
+Kyx = BEAST.td_assemble(bilform_4.bilform, bilform_4.test_space_dict, bilform_4.trial_space_dict)
 
 linform_4 = @discretise(-1.0H[k], k∈Y⊗δ)
 hy = BEAST.td_assemble(linform_4.linform, linform_4.test_space_dict)
@@ -156,15 +152,18 @@ jm = marchonintime(iZ04, Kyx, hy, Nt)
 
 
 ### FORM 5: qHP symmetrized TD-MFIE
-BEAST.@defaultquadstrat (K, Y⊗δ, X⊗∂q) BEAST.OuterNumInnerAnalyticQStrat(9)
+BEAST.@defaultquadstrat (K, Y⊗δ, X⊗q) BEAST.OuterNumInnerAnalyticQStrat(7)
+BEAST.@defaultquadstrat (K, Y⊗δ, X⊗∂cb) BEAST.OuterNumInnerAnalyticQStrat(7)
 
-bilform_5s = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗∂q
+bilform_5l = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗q
+bilform_5s = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗∂cb
 
+Kl = BEAST.td_assemble(bilform_5l.bilform, bilform_5l.test_space_dict, bilform_5l.trial_space_dict)
 Ks = 1/Δt * BEAST.td_assemble(bilform_5s.bilform, bilform_5s.test_space_dict, bilform_5s.trial_space_dict)
 
-MCP = (1/κ * ℙΣH + ℙΛ) * 𝕄i * iNyx
+MCP = (1/κ * ℙΣH + ℙΛ) * 𝕄i * (iNyx * ℙΣH + PΛH * iNyx * ℙΛ)
 
-qhpmfie = MCP * (Kyx * PΛH + Ks * PΣ)
+qhpmfie = MCP * (Kl * PΛH + Ks * PΣ)
 
 rhs5 = MCP * hy
 
@@ -195,7 +194,6 @@ rhs7 = rhs3 - rhs5
 
 Z07 = zeros(Float64, size(qhpcfie)[1:2])
 ConvolutionOperators.timeslice!(Z07, qhpcfie, 1)
-Z07 .+= 
 iZ07 = inv(Z07)
 y7 = marchonintime(iZ07, qhpcfie, rhs7, Nt)
 
@@ -207,14 +205,12 @@ end
 
 
 
-
-
 ```
                 CONDITION NUMBERS WITH RESPECT TO MESH SIZES
 ```
 
 using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators, Printf
-include("genmesh.jl")
+include("utils/genmesh.jl")
 
 setminus(A,B) = submesh(!in(B), A)
 
@@ -227,7 +223,7 @@ for meshsize in [0.9, 0.7, 0.55, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2]
     # Γ = meshcuboid(0.5, 2.0, 2.0, 0.3)
     # Γ = meshtorus(3.0, 1.0, 0.6)
     fn = joinpath(dirname(pathof(CompScienceMeshes)),"geos/torus.geo")
-    Γ = CompScienceMeshes.meshgeo(fn; dim=2, h=meshsize)
+    Γ = CompScienceMeshes.meshgeo(fn; dim=2, h=0.6)
 
     ∂Γ = boundary(Γ)
 
@@ -251,7 +247,7 @@ for meshsize in [0.9, 0.7, 0.55, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2]
     X = raviartthomas(Γ)
     Y = buffachristiansen(Γ)
 
-    Δt, Nt = 2.0, 4
+    Δt, Nt = 64.0, 4
     κ = 1/Δt
 
     # Operators
@@ -373,7 +369,7 @@ end
 ```
 
 using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators, Printf
-include("genmesh.jl")
+include("utils/genmesh.jl")
 
 setminus(A,B) = submesh(!in(B), A)
 
@@ -407,9 +403,10 @@ PΛH = Id - PΣ
 # RWG and BC function spaces
 X = raviartthomas(Γ)
 Y = buffachristiansen(Γ)
+																		
+N = NCross()
 
 # Gram matrix
-Gxx = assemble(I, X, X)
 Nyy = assemble(N, Y, Y)
 Nyx = assemble(N, Y, X)
 Nxy = -transpose(Nyx)
@@ -422,17 +419,17 @@ K0 = MWDoubleLayer3D(0.0)
 𝕄0 = Matrix(-0.5 * Nyx + 𝕂0)
 
 
-for Δt in [4096.0, 8192.0]
+Δt = 4096.0
     Nt = 4
     κ = 1/Δt
 
     # Operators
-    I = Identity()																			
-    N = NCross()
+    Idn = Identity()
     Ti = MWSingleLayer3D(κ, κ, 1/κ)                                                  # EFIO with imaginary wavenumber
     T = TDMaxwell3D.singlelayer(speedoflight=c)                                      # TD-EFIO
-    Ts = integrate(MWSingleLayerTDIO(c, -1/c, 0.0, 1, 0))                            # weakly-singular TD-EFIO (numdiffs=0)
-    Th = MWSingleLayerTDIO(c, 0.0, -c, 0, 0)                                         # hypersingular TD-EFIO (numdiffs=0)
+    ∂T = BEAST.derive(T)                                                             # time derivative of T
+    # Ts = integrate(MWSingleLayerTDIO(c, -1/c, 0.0, 1, 0))                            # weakly-singular TD-EFIO (numdiffs=0)
+    # Th = MWSingleLayerTDIO(c, 0.0, -c, 0, 0)                                         # hypersingular TD-EFIO (numdiffs=0)
     Ki = MWDoubleLayer3D(κ)                                                          # MFIO with imaginary wavenumber
     K = TDMaxwell3D.doublelayer(speedoflight=c)                                      # TD-MFIO
     
@@ -483,10 +480,11 @@ for Δt in [4096.0, 8192.0]
     ConvolutionOperators.timeslice!(Z03, qhpefie, 1)
 
 
+    
     ### FORM 4: standard TD-MFIE
     BEAST.@defaultquadstrat (K, Y⊗δ, X⊗h) BEAST.OuterNumInnerAnalyticQStrat(7)
 
-    bilform_4 = @discretise (0.5(N⊗I) + 1.0K)[k,j] k∈Y⊗δ j∈X⊗h
+    bilform_4 = @discretise (0.5(N⊗Idn) + 1.0K)[k,j] k∈Y⊗δ j∈X⊗h
     Kyx = BEAST.td_assemble(bilform_4.bilform, bilform_4.test_space_dict, bilform_4.trial_space_dict)
 
     Z04 = zeros(Float64, size(Kyx)[1:2])
@@ -496,7 +494,7 @@ for Δt in [4096.0, 8192.0]
     ### FORM 5: qHP symmetrized TD-MFIE
     BEAST.@defaultquadstrat (K, Y⊗δ, X⊗∂q) BEAST.OuterNumInnerAnalyticQStrat(7)
 
-    bilform_5s = @discretise (0.5(N⊗I) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗∂q
+    bilform_5s = @discretise (0.5(N⊗Idn) + 1.0K)[k, j] k∈Y⊗δ j∈X⊗∂q
 
     Kss = 1/Δt * BEAST.td_assemble(bilform_5s.bilform, bilform_5s.test_space_dict, bilform_5s.trial_space_dict)
 
