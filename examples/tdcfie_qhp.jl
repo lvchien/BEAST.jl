@@ -8,7 +8,7 @@ c = 1.0
 
 # Computational mesh
 # Γ = meshsphere(1.0, 0.3)
-# Γ = meshtorus(3.0, 1.0, 0.6)
+# Γ = meshtorus(3.0, 1.0, 0.5)
 # Γ = meshsquaretorus4holes(8.0, 2.0, 2.0, 0.8)
 # Γ = meshsquaretorus(8.0, 2.0, 4.0, 0.5)
 fn = joinpath(dirname(pathof(CompScienceMeshes)), "geos/torus.geo")
@@ -76,7 +76,7 @@ nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 9, 9, 9, 9)
 
 # Plane wave
 duration = 80 * Δt * c                                        
-delay = 120 * Δt                                        
+delay = 240 * Δt                                        
 amplitude = 1.0
 gaussian = creategaussian(duration, delay, amplitude)
 fgaussian = fouriertransform(gaussian)
