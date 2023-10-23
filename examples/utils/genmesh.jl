@@ -270,13 +270,13 @@ end
 
 
 """
-    meshsquaretorus(width, height, holewidth, h)
+    meshcuboid1hole(width, height, holewidth, h)
 
-Create a mesh of a square torus of size `width` and `height` with a hole of size `holewidth` and `height`
+Create a mesh of a cuboid of size `width × width × height` with a hole of size `holewidth × holewidth × height`
 
 The target edge size is `h`.
 """
-function meshsquaretorus(width, height, holewidth, h)
+function meshcuboid1hole(width, height, holewidth, h)
     @assert holewidth < width
     
     fno = tempname() * ".msh"
@@ -377,14 +377,14 @@ end
 
 
 """
-    meshsquaretorus4holes(width, height, holewidth, h)
+    meshcuboid4holes(width, height, holewidth, h)
 
-Create a mesh of a square torus of size `width` and `height` with 4 holes of size `holewidth` and `height`
+Create a mesh of a cuboid of size `width × width × height` with 4 holes of size `holewidth × holewidth × height`
 
 The target edge size is `h`.
 """
 
-function meshsquaretorus4holes(width, height, holewidth, h)
+function meshcuboid4holes(width, height, holewidth, h)
     @assert 2*holewidth < width
     
     fno = tempname() * ".msh"
