@@ -261,3 +261,30 @@ function dof_permutation(::LagrangeRefSpace{<:Any,1}, vert_permutation)
     i = findfirst(==(tuple(vert_permutation...)), _vert_perms_lag)
     return _dof_perms_lag1[i]
 end
+
+function dof_perm_matrix(::LagrangeRefSpace{<:Any,0}, vert_permutation)
+    i = findfirst(==(tuple(vert_permutation...)), _vert_perms_rt)
+    @assert i != nothing
+    return _dof_lag0perm_matrix[i]
+end
+
+function dof_perm_matrix(::LagrangeRefSpace{<:Any,1}, vert_permutation)
+    i = findfirst(==(tuple(vert_permutation...)), _vert_perms_rt)
+    @assert i != nothing
+    return _dof_rtperm_matrix[i]
+end
+
+const _dof_lag0perm_matrix = [
+    @SMatrix[1],         # 1. {1,2,3}
+     
+    @SMatrix[1],         # 2. {2,3,1}
+    
+    @SMatrix[1],         # 3. {3,1,2}
+    
+    @SMatrix[1],         # 4. {2,1,3}
+    
+    @SMatrix[1],         # 5. {1,3,2}
+    
+    @SMatrix[1]         # 6. {3,2,1}
+    
+]

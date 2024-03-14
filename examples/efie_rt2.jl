@@ -1,10 +1,10 @@
 using CompScienceMeshes
 using BEAST
 
-Γ = readmesh(joinpath(dirname(pathof(BEAST)),"../examples/sphere2.in"))
-# Γ = meshsphere(radius=1.0, h=0.1)
+#Γ = readmesh(joinpath(dirname(pathof(BEAST)),"../examples/sphere2.in"))
+Γ = meshsphere(radius=1.0, h=0.2)
 # Γ = CompScienceMeshes.meshmobius(h=0.035)
-X = raviartthomas(Γ)
+X = BEAST.raviartthomas2(Γ)
 
 κ, η = 1.0, 1.0
 t = Maxwell3D.singlelayer(wavenumber=κ)
