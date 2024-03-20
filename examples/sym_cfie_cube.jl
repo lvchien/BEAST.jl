@@ -1,4 +1,9 @@
-using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators, Plots, Printf, IterativeSolvers
+``` 
+    This script file aims at calculating the scattering of an electromagnetic plane-wave by the unit cube using the symmetrized CFIE formulation.
+    Author: Van Chien Le, 2024
+```
+
+using BEAST, Printf, IterativeSolvers
 include("utils/genmesh.jl")
 
 κ = π/2
@@ -22,10 +27,9 @@ meshsize = 0.18
 ### RWG and BC function spaces
 X = raviartthomas(Γ)
 Y = buffachristiansen(Γ)
-                                                                            
+                                                                        
+### Gram matrices
 N = NCross()
-
-### Gram matrix
 Nyx = assemble(N, Y, X)
 Nyy = assemble(N, Y, Y)
 iNyx = inv(Matrix(Nyx))
@@ -47,16 +51,17 @@ iNxy = -transpose(iNyx)
     end
 ```
 
-### Operators
+### Integral operators
 S = MWSingleLayer3D(γ, 1.0, -1.0/κ^2)                                      # EFIO with wave number κ 
 K = MWDoubleLayer3D(γ)                                                     # MFIO with wave number κ
 Si = MWSingleLayer3D(κ′, 1.0, 1.0/κ′^2)                                      # EFIO with pure imaginary wave number iκ 
 Ki = MWDoubleLayer3D(κ′)                                                    # MFIO with pure imaginary wave number iκ
 
+### Incident electric field
 E = Maxwell3D.planewave(direction=-ẑ, polarization=x̂, wavenumber=κ)
 e = (n × E) × n
 
-### Assembly of static operators
+### Assembly of integral operators
 nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 9, 9, 9, 9)
 
 ℤ = assemble(S, X, X, quadstrat=nearstrat)
@@ -70,7 +75,6 @@ lhs = im*η * iNxy * ℤ * iNyx * 𝕊y + κ′^2 * iNxy * 𝕊x * iNyx * 𝕊y 
 
 @hilbertspace k
 rhs = assemble(@discretise -e[k] k∈X)
-
 
 ### Solving cfie and efie by gmres (calculate iteration counts)
 xi, ch = IterativeSolvers.gmres(lhs, iNxy * rhs, log=true, maxiter=100000000, abstol=1e-8, reltol=1e-8)
