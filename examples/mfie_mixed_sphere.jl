@@ -10,17 +10,22 @@ include("utils/genmesh.jl")
 κ = 1.0
 radius = 1.0
 
+### Incident fields
+E = Maxwell3D.planewave(direction=-ẑ, polarization=x̂, wavenumber=κ)
+H = curl(E)
+e = (n × E) × n
+h = (n × H) × n
+
 ### Operators
 S = MWSingleLayer3D(-im*κ, 1.0, -1.0/κ^2)                                        # EFIO with wave number κ 
+Si = MWSingleLayer3D(κ, 1.0, 1.0/κ^2)                                            # EFIO with pure imaginary wave number iκ
 K = MWDoubleLayer3D(-im*κ)                                                       # MFIO with wave number κ
 N = NCross()
 
 ### Computational mesh
 for meshsize in [0.45, 0.35, 0.25, 0.2, 0.185, 0.18, 0.16, 0.15, 0.135, 0.13, 0.12, 0.11, 0.1, 0.09, 0.075, 0.065, 0.055]
-    # meshsize = 0.3
+    # meshsize = 0.04
     Γ = meshsphere(radius, meshsize)
-    # Γ = meshcuboid4holes(2.0, 0.5, 0.5, meshsize)
-    # Γ = meshcone(0.5, 5.0, meshsize)
 
     ### RWG and BC function spaces
     X = raviartthomas(Γ)
@@ -29,12 +34,6 @@ for meshsize in [0.45, 0.35, 0.25, 0.2, 0.185, 0.18, 0.16, 0.15, 0.135, 0.13, 0.
     ### Gram matrix
     Nyx = assemble(N, Y, X)
     iNyx = inv(Matrix(Nyx))
-
-    ### Incident fields
-    E = Maxwell3D.planewave(direction=-ẑ, polarization=x̂, wavenumber=κ)
-    H = curl(E)
-    e = (n × E) × n
-    h = (n × H) × n
 
     ### Assembly of integral operators
     nearstrat = BEAST.DoubleNumWiltonSauterQStrat(6, 7, 6, 7, 9, 9, 9, 9)
@@ -85,7 +84,6 @@ for meshsize in [0.45, 0.35, 0.25, 0.2, 0.185, 0.18, 0.16, 0.15, 0.135, 0.13, 0.
     j_mie = iNyx * assemble(SurfaceCurrent(sp, ex), Y)
 
     ### Error calculations
-    Si = MWSingleLayer3D(κ, 1.0, 1.0/κ^2)                                        # EFIO with pure imaginary wave number iκ
     Sixx = assemble(Si, X, X, quadstrat=nearstrat)
 
     diff_efie = j_efie - j_mie
