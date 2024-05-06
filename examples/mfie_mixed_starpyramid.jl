@@ -50,7 +50,7 @@ j_mfie_ref, ch_mfie_ref = IterativeSolvers.gmres(mfie_ref, rhs_mfie_ref, log=tru
 norm_mfie_ref = sqrt(real(dot(j_mfie_ref, Si_ref * j_mfie_ref)))
 
 ### Print to file
-open("starpyramid2.txt", "a") do io
+open("starpyramid.txt", "a") do io
     @printf(io, "%.3f %.3f %d %.12f %.3f %d %.12f \n", ref_mesh_size, 0.0, 0, 0.0, 0.0, ch_mfie_ref.iters, norm_mfie_ref)
 end; 
 ```
@@ -58,9 +58,8 @@ end;
 ```
 
 ### Computational mesh
-# 0.4, 0.35, 0.3, 0.25, 0.2, 0.185, 0.18, 0.16, 0.15, 0.135, 0.13, 0.12, 0.11, 0.1, 0.09, 0.08, 0.075, 0.07, 0.065, 0.06, 0.055, 0.05, 0.045, 
-# for meshsize in [0.09, 0.08, 0.075, 0.07, 0.065, 0.06, 0.055, 0.05, 0.045]
-    meshsize = 0.04
+for meshsize in [0.4, 0.35, 0.3, 0.25, 0.2, 0.185, 0.18, 0.16, 0.15, 0.135, 0.13, 0.12, 0.11, 0.1, 0.09, 0.08, 0.075, 0.07, 0.065, 0.06, 0.055, 0.05, 0.045, ]
+    # meshsize = 0.085
     Γ = meshstarpyramid(1.0, 0.3, 24, 0.5, meshsize)
 
     ### RWG and BC function spaces
@@ -90,14 +89,8 @@ end;
     norm_mfie = sqrt(real(dot(j_mfie, Sixx * j_mfie)))
     @show norm_efie, norm_mfie
 
-    # err_efie_E = abs(norm_efie - norm_efie_ref)/norm_efie_ref
-    # err_mfie_E = abs(norm_mfie - norm_efie_ref)/norm_efie_ref
-
-    # err_efie_M = abs(norm_efie - norm_mfie_ref)/norm_mfie_ref
-    # err_mfie_M = abs(norm_mfie - norm_mfie_ref)/norm_mfie_ref
-
     ### Print to file
-    open("starpyramid2.txt", "a") do io
+    open("starpyramid.txt", "a") do io
         @printf(io, "%.3f %.3f %d %.12f %.3f %d %.12f\n", meshsize, cond(Sxx), ch_efie.iters, norm_efie, cond(mfie), ch_mfie.iters, norm_mfie)
     end; 
-# end
+end
