@@ -1,3 +1,8 @@
+``` 
+    This script file aims at calculating the scattering of a transient electromagnetic plane-wave by a PEC using qHP-TD-EFIE.
+    Author: Van Chien Le, 2024
+```
+
 using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators
 include("utils/genmesh.jl")
 
