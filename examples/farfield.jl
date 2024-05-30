@@ -1,3 +1,8 @@
+``` 
+    This script file aims at comparing the far field computed by the Mie series and different time-domain formulations
+    Author: Van Chien Le, 2024
+```
+
 using BEAST, CompScienceMeshes, LinearAlgebra, ConvolutionOperators, Plots, SphericalScattering
 include("utils/genmesh.jl")
 
