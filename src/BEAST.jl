@@ -19,6 +19,7 @@ using AbstractTrees
 using NestedUnitRanges
 
 using Infiltrator
+using TestItems
 
 import LinearAlgebra: cross, dot
 import LinearAlgebra: ×, ⋅
@@ -159,6 +160,7 @@ include("bases/local/ncrossbdmlocal.jl")
 include("bases/local/ndlcclocal.jl")
 include("bases/local/ndlcdlocal.jl")
 include("bases/local/bdm3dlocal.jl")
+include("bases/local/rtqlocal.jl")
 
 include("bases/lagrange.jl")
 include("bases/rtspace.jl")
@@ -173,6 +175,7 @@ include("bases/ndlccspace.jl")
 include("bases/ndlcdspace.jl")
 include("bases/dual3d.jl")
 include("bases/bdm3dspace.jl")
+include("bases/rtqspace.jl")
 
 
 include("bases/subdbasis.jl")
