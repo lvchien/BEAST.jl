@@ -59,6 +59,7 @@ function (ϕ::NDLCCRefSpace)(ndlc)
 end
 
 numfunctions(x::NDLCCRefSpace, dom::CompScienceMeshes.ReferenceSimplex{3}) = 6
+numfunctions(x::NDLCCRefSpace) = 6
 
 #check orientation
 function curl(ref::NDLCCRefSpace, sh, el)
