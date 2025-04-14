@@ -92,16 +92,18 @@ Assemble the system matrix corresponding to the operator `operator` tested with 
 function assemble(operator::AbstractOperator, test_functions, trial_functions;
     storage_policy = Val{:bandedstorage},
     threading = Threading{:multi},
-    quadstrat=defaultquadstrat(operator, test_functions, trial_functions))
+    quadstrat=defaultquadstrat)
 
     Z, store = allocatestorage(operator, test_functions, trial_functions,
         storage_policy)
-    assemble!(operator, test_functions, trial_functions, store, threading; quadstrat)
+    # qs = quadstrat(operator, test_functions, trial_functions)
+    assemble!(operator, test_functions, trial_functions,
+        store, threading; quadstrat)
     return Z()
 end
 
 
-function assemble(A::AbstractMatrix, testfns, trialfns)
+function assemble(A::AbstractMatrix, testfns, trialfns; kwargs...)
     @assert numfunctions(testfns) == size(A,1)
     @assert numfunctions(trialfns) == size(A,2)
     return A
@@ -180,7 +182,9 @@ end
 
 function assemble!(operator::Operator, test_functions::Space, trial_functions::Space,
     store, threading::Type{Threading{:multi}};
-    quadstrat=defaultquadstrat(operator, test_functions, trial_functions))
+    quadstrat=defaultquadstrat)
+
+    quadstrat = quadstrat(operator, test_functions, trial_functions)
 
     P = Threads.nthreads()
     numchunks = P
@@ -197,8 +201,9 @@ end end
 
 function assemble!(operator::Operator, test_functions::Space, trial_functions::Space,
     store, threading::Type{Threading{:single}};
-    quadstrat=defaultquadstrat(operator, test_functions, trial_functions))
+    quadstrat=defaultquadstrat)
 
+    quadstrat = quadstrat(operator, test_functions, trial_functions)
     assemblechunk!(operator, test_functions, trial_functions, store; quadstrat)
 end
 
@@ -217,8 +222,9 @@ function assemble!(op::LinearCombinationOfOperators, tfs::AbstractSpace, bfs::Ab
     store, threading = Threading{:multi};
     quadstrat=defaultquadstrat(op, tfs, bfs))
 
-    for (a,A,qs) in zip(op.coeffs, op.ops, quadstrat)
+    for (a,A) in zip(op.coeffs, op.ops)
         store1(v,m,n) = store(a*v,m,n)
+        qs = quadstrat(A, tfs, bfs)
         assemble!(A, tfs, bfs, store1, threading; quadstrat=qs)
     end
 end
