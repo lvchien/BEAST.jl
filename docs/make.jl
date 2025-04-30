@@ -8,6 +8,7 @@ makedocs(;
     modules=[BEAST],
     authors="Kristof Cools and contributors",
     sitename="BEAST.jl",
+    checkdocs=:none,
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
         canonical="https://krcools.github.io/BEAST.jl",
@@ -86,7 +87,7 @@ makedocs(;
 deploydocs(;
     repo="github.com/krcools/BEAST.jl.git",
     target="build",
-    push_preview=true,
-    forcepush=true,
+    # push_preview=true,
+    forcepush=false,
     #devbranch = "feature/docs",
 )

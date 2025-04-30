@@ -145,7 +145,7 @@ end
 function assemble_local_refines!(biop::LocalOperator, tfs::Space, bfs::Space, store;
     quadstrat=defaultquadstrat(biop, tfs, bfs))
 
-    println("Using 'refines' algorithm for local assembly:")
+    # println("Using 'refines' algorithm for local assembly:")
 
     tgeo = geometry(tfs)
     bgeo = geometry(bfs)
@@ -237,7 +237,7 @@ function assemble_local_matched!(biop::LocalOperator, tfs::subdBasis, bfs::subdB
 end end end end
 
 
-function elementstree(elements)
+function elementstree(elements, expansion_ratio=1)
 
     nverts = dimension(eltype(elements)) + 1
     ncells = length(elements)
@@ -264,7 +264,7 @@ function elementstree(elements)
         end
     end
 
-    return Octree(points, radii)
+    return Octree(points, radii, T(expansion_ratio))
 end
 
 
