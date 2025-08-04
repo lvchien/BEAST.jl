@@ -128,7 +128,7 @@ sysmatrix(eq::DiscreteEquation; materialize=BEAST.assemble) =
     assemble(eq.equation.lhs, eq.test_space_dict, eq.trial_space_dict, materialize=materialize)
 rhs(eq::DiscreteEquation) = assemble(eq.equation.rhs, eq.test_space_dict)
 
-assemble(dbf::DiscreteBilform; materialize=BEAST.assemble) = assemble(dbf.bilform, dbf.test_space_dict, dbf.trial_space_dict; materialize)
+assemble(dbf::DiscreteBilform; materialize=BEAST.assemble, quadstrat = BEAST.defaultquadstrat) = assemble(dbf.bilform, dbf.test_space_dict, dbf.trial_space_dict; materialize, quadstrat)
 assemble(dlf::DiscreteLinform) = assemble(dlf.linform, dlf.test_space_dict)
 
 
@@ -210,12 +210,12 @@ _righthandside_axes(x, U, N) = (U,)
 td_assemble(lform::LinForm, X::DirectProductSpace) = assemble(lform, X)
 
 function assemble(bilform::BilForm, test_space_dict, trial_space_dict;
-    materialize=BEAST.assemble)
+    materialize=BEAST.assemble, quadstrat=BEAST.defaultquadstrat)
 
     X = _spacedict_to_directproductspace(test_space_dict)
     Y = _spacedict_to_directproductspace(trial_space_dict)
 
-    return assemble(bilform, X, Y; materialize)
+    return assemble(bilform, X, Y; materialize, quadstrat)
 end
 
 lift(a,I,J,U,V) = LiftedMaps.LiftedMap(a,I,J,U,V)
