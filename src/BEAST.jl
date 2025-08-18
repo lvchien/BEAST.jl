@@ -259,8 +259,8 @@ include("maxwell/sauterschwabints_bdm_rt.jl")
 #include("maxwell/sauterschwabints_bdm.jl")
 include("maxwell/nitsche.jl")
 include("maxwell/farfield.jl")
-include("maxwell/nearfield.jl")
 include("maxwell/spotential.jl")
+include("maxwell/nearfield.jl")
 include("maxwell/maxwell.jl")
 include("maxwell/sourcefield.jl")
 
@@ -303,6 +303,7 @@ include("maxwell/timedomain/tdfarfield.jl")
 include("solvers/solver.jl")
 include("solvers/lusolver.jl")
 include("solvers/itsolver.jl")
+include("solvers/gmres.jl")
 
 include("utils/plotlyglue.jl")
 
