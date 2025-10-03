@@ -69,6 +69,11 @@ export HH3DDoubleLayerNear
 export HH3DDoubleLayerTransposedNear
 export HH3DHyperSingularNear
 
+export HH2DSingleLayerNear
+export HH2DDoubleLayerNear
+export HH2DDoubleLayerTransposedNear
+export HH2DHyperSingularNear
+
 export NitscheHH3
 export MWSingleLayerTDIO
 export MWDoubleLayerTDIO
@@ -126,6 +131,7 @@ export PlaneWaveDirichlet
 export PlaneWaveNeumann
 
 struct NormalVector end
+struct TangentVector end
 
 using CompScienceMeshes
 using Combinatorics
@@ -190,6 +196,9 @@ include("bases/stagedtimestep.jl")
 
 include("bases/timebasis.jl")
 include("bases/tensorbasis.jl")
+
+include("bases/composedbasis.jl")
+include("bases/local/localcomposedbasis.jl")
 
 include("operator.jl")
 
@@ -276,6 +285,7 @@ include("helmholtz3d/wiltonints.jl")
 
 include("helmholtz2d/hh2dexc.jl")
 include("helmholtz2d/hh2dops.jl")
+include("helmholtz2d/hh2dnear.jl")
 include("helmholtz2d/helmholtz2d.jl")
 
 #suport for Volume Integral equation
@@ -307,8 +317,11 @@ include("solvers/gmres.jl")
 
 include("utils/plotlyglue.jl")
 
-
-
+include("composedoperators/composedoperator.jl")
+include("composedoperators/displacementmesh.jl")
+include("composedoperators/potentials.jl")
+include("composedoperators/trace.jl")
+include("composedoperators/analytic_excitation.jl")
 
 const x̂ = point(1, 0, 0)
 const ŷ = point(0, 1, 0)
@@ -318,6 +331,7 @@ export x̂, ŷ, ẑ
 const n = NormalVector()
 export n
 
+export TangentTrace
 #const to = TimerOutput()
 
 end # module
