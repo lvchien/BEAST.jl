@@ -252,7 +252,7 @@ currently not working!
 function ttrace(X::Space, γ)
 
     x = refspace(X)
-    E, ad = assemblydata(X)
+    E, ad, a2g  = assemblydata(X)
     igeo = geometry(X)
     @assert dimension(γ) == dimension(igeo)-1
 
@@ -271,12 +271,11 @@ function ttrace(X::Space, γ)
     fns = [Vector{S}() for i in 1:numfunctions(X)]
 
     for (p,el) in enumerate(E)
-
         for (q,fc) in enumerate(faces(el))
             on_target(fc) || continue
 
             r = 0
-            for k in nzrange(D,p)
+            for k in nzrange(D,a2g[p])
                 vals[k] == q && (r = rows[k]; break)
             end
             @assert r != 0
@@ -299,4 +298,25 @@ function ttrace(X::Space, γ)
     end
 
     ttrace(X, ogeo, fns)
+end
+
+@testitem "ttrace igeo != supports" begin
+    using CompScienceMeshes
+
+    Ω = CompScienceMeshes.tetmeshsphere(1.0, 0.4)
+    Γ = boundary(Ω)
+    edges_bnd = skeleton(boundary(Ω), 1)
+    edges_int = setminus(skeleton(Ω, 1), edges_bnd)
+
+    X = nedelecc3d(Ω, edges_bnd)
+    Y = ttrace(X, Γ)
+
+    support, ad, s2g = BEAST.assemblydata(X)
+    @test length(support) < length(Ω)
+    @test numfunctions(X) == numfunctions(Y)
+
+    # T = Maxwell3D.singlelayer(wavenumber = 3.0)
+    # A = assemble(T, Y, Y)
+
+    # @test size(A) == (708, 708)
 end
